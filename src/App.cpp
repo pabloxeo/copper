@@ -14,6 +14,8 @@ struct VertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> uTime: f32;
+@group(0) @binding(1) var<uniform> uMousePosition: vec2<f32>;
+
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -100,9 +102,14 @@ fn sdf_sphere(pos: vec3<f32>) -> f32 {
     let animated_position = vec3(sin(uTime) * 1.0, -0.5, cos(uTime) * 1.0 + 5.0);
     return length(pos - animated_position) - 1.0;
 }
+//fn sdf_sphere2(pos: vec3<f32>) -> f32 {
+//    return length(pos - vec3(0.5, 1.5, 5.0)) - 1.0;
+//}
 fn sdf_sphere2(pos: vec3<f32>) -> f32 {
-    return length(pos - vec3(0.5, 1.5, 5.0)) - 1.0;
+    let animated_position = vec3(uMousePosition.x, uMousePosition.y, 5.0);
+    return length(pos - animated_position) - 1.0;
 }
+
 fn sdf_plane(pos: vec3<f32>) -> f32 {
     return pos.y + 1.0;
 }
@@ -174,17 +181,62 @@ bool App::Initialize() {
 	// Release the adapter only after it has been fully utilized
 	adapter.release();
     // Define the Bind Group Layout for uTime uniform
-    BindGroupLayoutEntry bglEntry = {};
-    bglEntry.binding = 0;
-    bglEntry.visibility = ShaderStage::Vertex | ShaderStage::Fragment; // Vertex and Fragment shader visibility
-    bglEntry.buffer.type = BufferBindingType::Uniform; // Type is Uniform buffer
-    bglEntry.buffer.minBindingSize = sizeof(float); // Size of the float
+    // Define uTime layout entry
+    BindGroupLayoutEntry uTimeLayoutEntry = {};
+    uTimeLayoutEntry.binding = 0;
+    uTimeLayoutEntry.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    uTimeLayoutEntry.buffer.type = BufferBindingType::Uniform;
+    uTimeLayoutEntry.buffer.minBindingSize = sizeof(float);
 
-    BindGroupLayoutDescriptor bglDesc = {};
-    bglDesc.entryCount = 1;
-    bglDesc.entries = &bglEntry;
+// Define uMousePosition layout entry
+    BindGroupLayoutEntry uMousePositionLayoutEntry = {};
+    uMousePositionLayoutEntry.binding = 1;
+    uMousePositionLayoutEntry.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    uMousePositionLayoutEntry.buffer.type = BufferBindingType::Uniform;
+    uMousePositionLayoutEntry.buffer.minBindingSize = 2 * sizeof(float);
 
-    bindGroupLayout = device.createBindGroupLayout(bglDesc);
+// Set up layout entries array and descriptor
+    BindGroupLayoutEntry layoutEntries[] = { uTimeLayoutEntry, uMousePositionLayoutEntry };
+    BindGroupLayoutDescriptor bindGroupLayoutDescriptor = {};
+    bindGroupLayoutDescriptor.entryCount = 2;
+    bindGroupLayoutDescriptor.entries = layoutEntries;
+
+// Create bind group layout
+    bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDescriptor);
+
+// Buffer for uTime
+    BufferDescriptor uTimeBufferDesc = {};
+    uTimeBufferDesc.size = sizeof(float);
+    uTimeBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+    uTimeBuffer = device.createBuffer(uTimeBufferDesc);
+
+// Buffer for uMousePosition
+    BufferDescriptor uMousePositionBufferDesc = {};
+    uMousePositionBufferDesc.size = 2 * sizeof(float);
+    uMousePositionBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+    uMouseBuffer = device.createBuffer(uMousePositionBufferDesc);
+
+// Bind group entries
+    BindGroupEntry timeBufferEntry = {};
+    timeBufferEntry.binding = 0;
+    timeBufferEntry.buffer = uTimeBuffer;
+    timeBufferEntry.offset = 0;
+    timeBufferEntry.size = sizeof(float);
+
+    BindGroupEntry mouseBufferEntry = {};
+    mouseBufferEntry.binding = 1;
+    mouseBufferEntry.buffer = uMouseBuffer;
+    mouseBufferEntry.offset = 0;
+    mouseBufferEntry.size = 2 * sizeof(float);
+
+    BindGroupEntry bindGroupEntries[] = { timeBufferEntry, mouseBufferEntry };
+    BindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.layout = bindGroupLayout;
+    bindGroupDesc.entryCount = 2;
+    bindGroupDesc.entries = bindGroupEntries;
+
+// Create the bind group
+    bindGroup = device.createBindGroup(bindGroupDesc);
 
     InitializePipeline();
 
@@ -269,6 +321,19 @@ void App::MainLoop() {
     // Example of updating uTime each frame
     float currentTime = static_cast<float>(glfwGetTime());
     queue.writeBuffer(uTimeBuffer, 0, &currentTime, sizeof(float));
+
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+// Convert to normalized coordinates (-1 to 1)
+    float mousePos[2] = {
+            static_cast<float>((xpos / 1080.0) * 2.0 - 1.0),
+            static_cast<float>((1.0 - (ypos / 720.0)) * 2.0 - 1.0)
+    };
+
+// Update buffer
+    queue.writeBuffer(uMouseBuffer, 0, &mousePos, sizeof(mousePos));
+
 }
 
 bool App::IsRunning() {
@@ -374,18 +439,27 @@ void App::InitializePipeline() {
     bufferDesc.mappedAtCreation = false;
     uTimeBuffer = device.createBuffer(bufferDesc);
 
-    BindGroupEntry bgEntry = {};
-    bgEntry.binding = 0;
-    bgEntry.buffer = uTimeBuffer;
-    bgEntry.offset = 0;
-    bgEntry.size = sizeof(float);
+    BindGroupEntry bgTimeEntry = {};
+    bgTimeEntry.binding = 0;
+    bgTimeEntry.buffer = uTimeBuffer;
+    bgTimeEntry.offset = 0;
+    bgTimeEntry.size = sizeof(float);
+
+    BindGroupEntry bgMouseEntry = {};
+    bgMouseEntry.binding = 1;
+    bgMouseEntry.buffer = uMouseBuffer;
+    bgMouseEntry.offset = 0;
+    bgMouseEntry.size = 2 * sizeof(float);
+
+    BindGroupEntry entries[] = { bgTimeEntry, bgMouseEntry };
 
     BindGroupDescriptor bgDesc = {};
     bgDesc.layout = bindGroupLayout;
-    bgDesc.entryCount = 1;
-    bgDesc.entries = &bgEntry;
+    bgDesc.entryCount = 2;
+    bgDesc.entries = entries;
 
     bindGroup = device.createBindGroup(bgDesc);
+
 
     // Release shader module as it's no longer needed
     shaderModule.release();

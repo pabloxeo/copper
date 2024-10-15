@@ -17,10 +17,10 @@ add_subdirectory(glfw3webgpu)
 
 add_executable(copper
         main.cpp
-        App.cpp
-        App.h
+        src/App.cpp
+        src/App.h
         implementations.cpp
-)
+        )
 
 target_link_libraries(copper PRIVATE glfw webgpu glfw3webgpu)
 

@@ -43,6 +43,7 @@ private:
     RenderPipeline pipeline;
     BindGroup bindGroup;         // Bind group for uniform bindings
     Buffer uTimeBuffer;          // Buffer for the uTime uniform
+    Buffer uMouseBuffer;
     BindGroupLayout bindGroupLayout; // Bind group layout for uTime
 };
 
