@@ -44,7 +44,33 @@ private:
     BindGroup bindGroup;         // Bind group for uniform bindings
     Buffer uTimeBuffer;          // Buffer for the uTime uniform
     Buffer uMouseBuffer;
+    Buffer uLightPositionBuffer;
+    Buffer uViewPositionBuffer;
+
     BindGroupLayout bindGroupLayout; // Bind group layout for uTime
+
+    float lightPos[3] = {0.0f, 5.0f, 0.0f};  // Initialize light position
+    // ... other members ...
+
+    static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+        App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
+        if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+            switch (key) {
+                case GLFW_KEY_UP:
+                    app->lightPos[2] += 0.1f; // Move light up
+                    break;
+                case GLFW_KEY_DOWN:
+                    app->lightPos[2] -= 0.1f; // Move light down
+                    break;
+                case GLFW_KEY_LEFT:
+                    app->lightPos[0] -= 0.1f; // Move light left
+                    break;
+                case GLFW_KEY_RIGHT:
+                    app->lightPos[0] += 0.1f; // Move light right
+                    break;
+            }
+        }
+    }
 };
 
 
