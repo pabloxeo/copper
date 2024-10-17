@@ -21,6 +21,7 @@ struct DistanceColor {
 @group(0) @binding(1) var<uniform> uMousePosition: vec2<f32>;  // Mouse position
 @group(0) @binding(2) var<uniform> uLightPosition: vec3<f32>;  // Light source position
 @group(0) @binding(3) var<uniform> uViewPosition: vec3<f32>;   // Camera position
+@group(0) @binding(4) var<uniform> uFov: f32;
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -61,35 +62,33 @@ const MAX_DIST: f32 = 1000.0;         // Maximum distance to ray march
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    let aspect_ratio =   720.0/1080.0;
     var uv: vec2<f32> = in.uv;
     uv = (uv * 2.0) - 1.0; // Convert UV coordinates to range [-1, 1]
-    uv.y = -(uv.y * 1080.0 / 720.0); // Adjust for aspect ratio
-
-    let aspect_ratio = 1080.0 / 720.0;
+    uv.y = -(uv.y * aspect_ratio); // Adjust for aspect ratio
     let ro = uViewPosition; // Camera position
-    let rd = normalize(vec3(uv.x * aspect_ratio, uv.y, 1.0)); // Ray direction
-
+    let rd = normalize(vec3(uv.x , uv.y, uFov)); // Ray direction
     return ray_march(ro, rd); // Perform ray marching
 }
 
-fn blinn_phong_lighting(normal: vec3<f32>, view_dir: vec3<f32>, light_dir: vec3<f32>, current_pos: vec3<f32>) -> vec3<f32> {
+fn blinn_phong_lighting(normal: vec3<f32>, view_dir: vec3<f32>, light_dir: vec3<f32>, light_col: vec3<f32>, current_pos: vec3<f32>) -> vec3<f32> {
     // Material properties
     let ambient_strength = 0.2; // Ambient light strength
     let diffuse_strength = 0.8; // Diffuse light strength
-    let specular_strength = 1.4; // Specular light strength
+    let specular_strength = 1.0; // Specular light strength
     let shininess = 32.0; // Shininess factor for highlights
 
     // Ambient component
-    let ambient = ambient_strength * vec3(1.0, 1.0, 1.0);
+    let ambient = ambient_strength * light_col;
 
     // Diffuse component
     let diff = max(dot(normal, light_dir), 0.0);
-    let diffuse = diffuse_strength * diff * vec3(1.0, 1.0, 1.0);
+    let diffuse = diffuse_strength * diff * light_col;
 
     // Specular component (Blinn-Phong)
     let halfway_dir = normalize(light_dir + view_dir);
     let spec = pow(max(dot(normal, halfway_dir), 0.0), shininess);
-    let specular = specular_strength * spec * vec3(1.0, 1.0, 1.0);
+    let specular = specular_strength * spec * light_col;
 
     // Shadow calculation
     let shadow_factor = calculate_shadow(current_pos, light_dir, normal); // Check for shadow
@@ -104,7 +103,7 @@ fn calculate_shadow(current_pos: vec3<f32>, light_dir: vec3<f32>, normal: vec3<f
     var total_distance: f32 = 0.0;
 
     // Perform ray marching towards the light
-    for (var i = 0; i < MAX_MARCHING_STEPS; i++) {
+    for (var i = 0; i < MAX_MARCHING_STEPS && total_distance < length(uLightPosition - current_pos); i++) {
         let shadow_pos = shadow_ray_origin + total_distance * shadow_ray_dir; // Current position in shadow ray
         let dc = sdf(shadow_pos); // Evaluate distance and color
 
@@ -113,10 +112,6 @@ fn calculate_shadow(current_pos: vec3<f32>, light_dir: vec3<f32>, normal: vec3<f
         }
 
         total_distance += dc.distance; // Increment distance traveled
-
-        if (total_distance > length(uLightPosition - current_pos)) { // If light is reached
-            break; // Exit loop
-        }
     }
     return 0.0; // Not in shadow
 }
@@ -136,13 +131,20 @@ fn opSmoothIntersect(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceCo
     return DistanceColor(blended_distance, blended_color);
 }
 
+fn opSmoothSubtraction(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {
+    let h = clamp(0.5 - 0.5 * (d2.distance + d1.distance) / k, 0.0, 1.0);
+    let blended_distance = mix(d2.distance, -d1.distance, h) + k * h * (1.0 - h);
+    let blended_color = mix(d2.color, d1.color, h); // Blend colors
+    return DistanceColor(blended_distance, blended_color);
+}
+
 fn sdf(pos: vec3<f32>) -> DistanceColor {
     let d1 = sdf_sphere(pos); // SDF for sphere
-    let d2 = sdf_plane(pos);   // SDF for plane
+    let d2 = sdf_box(pos);   // SDF for plane
     let d3 = sdf_sphere2(pos);
 
     // Use smooth union or intersection with colors
-    return opSmoothUnion(d3, opSmoothUnion(d1, d2, 0.3), 0.3); // Use smooth union
+    return opSmoothUnion(d3, opSmoothUnion(d1, d2, 1.0), 1.); // Use smooth union
     // return opSmoothIntersect(d1, d2, 0.1); // Uncomment this for smooth intersection
 }
 
@@ -150,9 +152,8 @@ fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {
     var total_distance_traveled: f32 = 0.0;
     var surface_color: vec3<f32> = vec3(0.0, 0.0, 0.0); // Default surface color
     var hit_color: vec3<f32> = vec3(0.0, 0.0, 0.0); // Color at hit point
-
     // Ray marching loop
-    for (var i = 0; i < MAX_MARCHING_STEPS; i++) {
+    for (var i = 0; i < MAX_MARCHING_STEPS && total_distance_traveled < MAX_DIST; i++) {
         let current_pos = ro + total_distance_traveled * rd; // Current position in space
         let dc = sdf(current_pos); // Distance and color evaluation
         total_distance_traveled += dc.distance; // Increment distance traveled
@@ -169,20 +170,14 @@ fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {
             hit_color = dc.color;
 
             // Calculate final color using Blinn-Phong lighting
-            let color = blinn_phong_lighting(normal, view_dir, light_dir, current_pos); // Calculate lighting
+            let color = blinn_phong_lighting(normal, view_dir, light_dir, vec3<f32>(1.0,1.0,1.0), current_pos); // Calculate lighting
             surface_color = hit_color * color; // Combine surface color with lighting
             break; // Exit the loop upon hitting a surface
-        }
-
-        if (total_distance_traveled > MAX_DIST) { // If maximum distance exceeded
-            break; // Exit the loop
         }
     }
 
     return vec4(surface_color, 1.0); // Return the final color with alpha
 }
-
-
 
 fn calculate_normal(p: vec3<f32>) -> vec3<f32> {
     let epsilon = 0.00001; // Small offset for normal calculation
@@ -210,19 +205,35 @@ fn calculate_normal(p: vec3<f32>) -> vec3<f32> {
 
 // Update the SDF functions to return DistanceColor
 fn sdf_sphere(pos: vec3<f32>) -> DistanceColor {
-    let animated_position = vec3(sin(uTime) * 1.0, 0.0, cos(uTime) * 1.0 + 4.0);
-    let distance = length(pos - animated_position) - 1.0; // Sphere radius of 1.0
+    let animated_position = vec3(sin(uTime) * 2, sin(uTime) * 2, cos(uTime) * 2 + 4.0);
+    let distance = length(pos - animated_position) - 0.5; // Sphere radius of 1.0
     return DistanceColor(distance, vec3(1.0, 0.0, 0.0)); // Red color for the first sphere
 }
 
 fn sdf_sphere2(pos: vec3<f32>) -> DistanceColor {
     let animated_position = vec3(uMousePosition.x, uMousePosition.y, 4.0);
     let distance = length(pos - animated_position) - 1.0; // Sphere radius of 1.0
-    return DistanceColor(distance, vec3(0.0, 0.0, 1.0)); // Green color for the second sphere
+    return DistanceColor(distance, vec3(0.0, 0.0, 1.0)); // Blue color for the second sphere
 }
 
+fn sdf_box(p: vec3<f32>) -> DistanceColor {
+  // Define the half-extents of the box
+  let box_size = vec3<f32>(1.0, 1.0, 1.0); // Box dimensions: adjust as needed
+
+  // Offset the position by translating it downward along the y-axis
+  let translated_p = p - vec3<f32>(0.0, -2.0, 4.0);
+
+  // Calculate the distance for the translated point
+  let q = abs(translated_p) - box_size;
+  let dist = length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+
+  // Return the distance with color
+  return DistanceColor(dist, vec3<f32>(0.8, 0.8, 0.2));
+}
+
+
 fn sdf_plane(pos: vec3<f32>) -> DistanceColor {
-    return DistanceColor(pos.y + 1.0, vec3(0.1, 0.1, 0.1)); // Blue color for the plane
+    return DistanceColor(pos.y + 1.0, vec3(0.1, 0.1, 0.1)); // Grey color for the plane
 }
 
 
@@ -324,10 +335,16 @@ bool App::Initialize() {
     uViewPositionLayoutEntry.buffer.type = BufferBindingType::Uniform;
     uViewPositionLayoutEntry.buffer.minBindingSize = 3 * sizeof(float);
 
+    BindGroupLayoutEntry uFovLayoutEntry = {};
+    uFovLayoutEntry.binding = 4;
+    uFovLayoutEntry.visibility = ShaderStage::Fragment;
+    uFovLayoutEntry.buffer.type = BufferBindingType::Uniform;
+    uFovLayoutEntry.buffer.minBindingSize = sizeof(float);
+
 // Set up layout entries array and descriptor
-    BindGroupLayoutEntry layoutEntries[] = { uTimeLayoutEntry, uMousePositionLayoutEntry, uLightPositionLayoutEntry, uViewPositionLayoutEntry };
+    BindGroupLayoutEntry layoutEntries[] = { uTimeLayoutEntry, uMousePositionLayoutEntry, uLightPositionLayoutEntry, uViewPositionLayoutEntry, uFovLayoutEntry };
     BindGroupLayoutDescriptor bindGroupLayoutDescriptor = {};
-    bindGroupLayoutDescriptor.entryCount = 4;
+    bindGroupLayoutDescriptor.entryCount = 5;
     bindGroupLayoutDescriptor.entries = layoutEntries;
 
 // Create bind group layout
@@ -357,6 +374,11 @@ bool App::Initialize() {
     uViewPositionBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
     uViewPositionBuffer = device.createBuffer(uViewPositionBufferDesc);
 
+    BufferDescriptor uFovBufferDesc = {};
+    uFovBufferDesc.size = sizeof(float);
+    uFovBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+    uFovBuffer = device.createBuffer(uFovBufferDesc);
+
 // Bind group entries
     BindGroupEntry timeBufferEntry = {};
     timeBufferEntry.binding = 0;
@@ -382,10 +404,16 @@ bool App::Initialize() {
     viewBufferEntry.offset = 0;
     viewBufferEntry.size = 3 * sizeof(float);
 
-    BindGroupEntry bindGroupEntries[] = { timeBufferEntry, mouseBufferEntry, lightBufferEntry, viewBufferEntry };
+    BindGroupEntry fovBufferEntry = {};
+    fovBufferEntry.binding = 4;
+    fovBufferEntry.buffer = uFovBuffer;
+    fovBufferEntry.offset = 0;
+    fovBufferEntry.size = sizeof(float);
+
+    BindGroupEntry bindGroupEntries[] = { timeBufferEntry, mouseBufferEntry, lightBufferEntry, viewBufferEntry, fovBufferEntry };
     BindGroupDescriptor bindGroupDesc = {};
     bindGroupDesc.layout = bindGroupLayout;
-    bindGroupDesc.entryCount = 4;
+    bindGroupDesc.entryCount = 5;
     bindGroupDesc.entries = bindGroupEntries;
 
 // Create the bind group
@@ -484,10 +512,13 @@ void App::MainLoop() {
             static_cast<float>((1.0 - (ypos / 720.0)) * 2.0 - 1.0)
     };
 
-    queue.writeBuffer(uLightPositionBuffer, 0, lightPos, sizeof(lightPos));
+    queue.writeBuffer(uLightPositionBuffer, 0, &lightPos, sizeof(lightPos));
 
     float viewPos[3] = {0.0f, 0.0f, 0.0f};  // Sample view position, update as needed
     queue.writeBuffer(uViewPositionBuffer, 0, &viewPos, sizeof(viewPos));
+
+    float fov = 0.7;
+    queue.writeBuffer(uFovBuffer, 0, &fov, sizeof(float));
 
 
 // Update buffer

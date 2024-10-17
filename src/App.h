@@ -32,7 +32,16 @@ private:
     // Substep of Initialize() that creates the render pipeline
     void InitializePipeline();
 
-private:
+    TextureView CreateMSAATargetView();
+
+    void Present();
+
+    void Render();
+
+    void Update();
+
+    void ProcessInput();
+
     // We put here all the variables that are shared between init and main loop
     GLFWwindow *window;
     Device device;
@@ -44,6 +53,7 @@ private:
     BindGroup bindGroup;         // Bind group for uniform bindings
     Buffer uTimeBuffer;          // Buffer for the uTime uniform
     Buffer uMouseBuffer;
+    Buffer uFovBuffer;
     Buffer uLightPositionBuffer;
     Buffer uViewPositionBuffer;
 
@@ -52,7 +62,7 @@ private:
     float lightPos[3] = {0.0f, 5.0f, 0.0f};  // Initialize light position
     // ... other members ...
 
-    static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    static void KeyCallback(GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action, [[maybe_unused]] int mods) {
         App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
         if (action == GLFW_PRESS || action == GLFW_REPEAT) {
             switch (key) {
