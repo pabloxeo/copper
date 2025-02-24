@@ -22,6 +22,8 @@ struct DistanceColor {
 @group(0) @binding(2) var<uniform> uLightPosition: vec3<f32>;  // Light source position
 @group(0) @binding(3) var<uniform> uViewPosition: vec3<f32>;   // Camera position
 @group(0) @binding(4) var<uniform> uFov: f32;
+@group(0) @binding(5) var<uniform> uWindowSize: vec2<f32>;  // Window width and height
+
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -62,7 +64,7 @@ const MAX_DIST: f32 = 1000.0;         // Maximum distance to ray march
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let aspect_ratio =   720.0/1080.0;
+    let aspect_ratio =   uWindowSize.y/uWindowSize.x;
     var uv: vec2<f32> = in.uv;
     uv = (uv * 2.0) - 1.0; // Convert UV coordinates to range [-1, 1]
     uv.y = -(uv.y * aspect_ratio); // Adjust for aspect ratio
@@ -211,7 +213,7 @@ fn sdf_sphere(pos: vec3<f32>) -> DistanceColor {
 }
 
 fn sdf_sphere2(pos: vec3<f32>) -> DistanceColor {
-    let animated_position = vec3(uMousePosition.x, uMousePosition.y, 4.0);
+    let animated_position = vec3(uMousePosition.x*4., uMousePosition.y*4., 4.0);
     let distance = length(pos - animated_position) - 1.0; // Sphere radius of 1.0
     return DistanceColor(distance, vec3(0.0, 0.0, 1.0)); // Blue color for the second sphere
 }
@@ -244,14 +246,26 @@ bool App::Initialize() {
 	// Open window
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	window = glfwCreateWindow(1080, 720, "Copper", nullptr, nullptr);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* videoMode = glfwGetVideoMode(primaryMonitor);
+    windowWidth = videoMode->width;
+    windowHeight = videoMode->height;
+
+    window = glfwCreateWindow(windowWidth, windowHeight, "Copper", nullptr, nullptr);
+    glfwSetWindowAspectRatio(window, 16, 9);
     glfwSetWindowUserPointer(window, this); // Set the user pointer to access App instance
     glfwSetKeyCallback(window, KeyCallback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    int tempWidth, tempHeight;
+    glfwGetFramebufferSize(window, &tempWidth, &tempHeight);
+
+    // Convert to float and assign
+    windowWidth = static_cast<float>(tempWidth);
+    windowHeight = static_cast<float>(tempHeight);
 
     Instance instance = wgpuCreateInstance(nullptr);
-
-	surface = glfwGetWGPUSurface(instance, window);
 
 	std::cout << "Requesting adapter..." << std::endl;
 	surface = glfwGetWGPUSurface(instance, window);
@@ -289,8 +303,8 @@ bool App::Initialize() {
 	SurfaceConfiguration config = {};
 
 	// Configuration of the textures created for the underlying swap chain
-	config.width = 1080;
-	config.height = 720;
+	config.width = windowWidth;
+	config.height = windowHeight;
 	config.usage = TextureUsage::RenderAttachment;
 	surfaceFormat = surface.getPreferredFormat(adapter);
 	config.format = surfaceFormat;
@@ -341,10 +355,23 @@ bool App::Initialize() {
     uFovLayoutEntry.buffer.type = BufferBindingType::Uniform;
     uFovLayoutEntry.buffer.minBindingSize = sizeof(float);
 
-// Set up layout entries array and descriptor
-    BindGroupLayoutEntry layoutEntries[] = { uTimeLayoutEntry, uMousePositionLayoutEntry, uLightPositionLayoutEntry, uViewPositionLayoutEntry, uFovLayoutEntry };
+    BindGroupLayoutEntry uWindowSizeLayoutEntry = {};
+    uWindowSizeLayoutEntry.binding = 5;
+    uWindowSizeLayoutEntry.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    uWindowSizeLayoutEntry.buffer.type = BufferBindingType::Uniform;
+    uWindowSizeLayoutEntry.buffer.minBindingSize = 2 * sizeof(float);
+
+    // Set up layout entries array and descriptor
+    BindGroupLayoutEntry layoutEntries[] = {
+            uTimeLayoutEntry,
+            uMousePositionLayoutEntry,
+            uLightPositionLayoutEntry,
+            uViewPositionLayoutEntry,
+            uFovLayoutEntry,
+            uWindowSizeLayoutEntry  // Add the new layout entry
+    };
     BindGroupLayoutDescriptor bindGroupLayoutDescriptor = {};
-    bindGroupLayoutDescriptor.entryCount = 5;
+    bindGroupLayoutDescriptor.entryCount = 6;
     bindGroupLayoutDescriptor.entries = layoutEntries;
 
 // Create bind group layout
@@ -379,6 +406,12 @@ bool App::Initialize() {
     uFovBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
     uFovBuffer = device.createBuffer(uFovBufferDesc);
 
+    BufferDescriptor uWindowSizeBufferDesc = {};
+    uWindowSizeBufferDesc.size = 2 * sizeof(float);     // Size for vec2<f32>
+    uWindowSizeBufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+    uWindowSizeBuffer = device.createBuffer(uWindowSizeBufferDesc);
+
+
 // Bind group entries
     BindGroupEntry timeBufferEntry = {};
     timeBufferEntry.binding = 0;
@@ -410,10 +443,23 @@ bool App::Initialize() {
     fovBufferEntry.offset = 0;
     fovBufferEntry.size = sizeof(float);
 
-    BindGroupEntry bindGroupEntries[] = { timeBufferEntry, mouseBufferEntry, lightBufferEntry, viewBufferEntry, fovBufferEntry };
+    BindGroupEntry windowSizeBufferEntry = {};
+    windowSizeBufferEntry.binding = 5;                  // Corresponds to `@binding(5)` in the shader
+    windowSizeBufferEntry.buffer = uWindowSizeBuffer;   // Assign the buffer created above
+    windowSizeBufferEntry.offset = 0;                   // Offset is zero for the entire buffer
+    windowSizeBufferEntry.size = 2 * sizeof(float);     // Size matches vec2<f32>
+
+    BindGroupEntry bindGroupEntries[] = {
+            timeBufferEntry,
+            mouseBufferEntry,
+            lightBufferEntry,
+            viewBufferEntry,
+            fovBufferEntry,
+            windowSizeBufferEntry // Add this new entry
+    };
     BindGroupDescriptor bindGroupDesc = {};
     bindGroupDesc.layout = bindGroupLayout;
-    bindGroupDesc.entryCount = 5;
+    bindGroupDesc.entryCount = 6;
     bindGroupDesc.entries = bindGroupEntries;
 
 // Create the bind group
@@ -435,70 +481,71 @@ void App::Terminate() {
 }
 
 void App::MainLoop() {
-	glfwPollEvents();
+    glfwPollEvents();
 
-	// Get the next target texture view
-	TextureView targetView = GetNextSurfaceTextureView();
-	if (!targetView) return;
+    // Get the next target texture view
+    TextureView targetView = GetNextSurfaceTextureView();
+    if (!targetView) return;
 
-	// Create a command encoder for the draw call
-	CommandEncoderDescriptor encoderDesc = {};
-	encoderDesc.label = "My command encoder";
-	CommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+    // Create a command encoder for the draw call
+    CommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = "My command encoder";
+    CommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
-	// Create the render pass that clears the screen with our color
-	RenderPassDescriptor renderPassDesc = {};
+    // Create the render pass that clears the screen with our color
+    RenderPassDescriptor renderPassDesc = {};
 
-	// The attachment part of the render pass descriptor describes the target texture of the pass
-	RenderPassColorAttachment renderPassColorAttachment = {};
-	renderPassColorAttachment.view = targetView;
-	renderPassColorAttachment.resolveTarget = nullptr;
-	renderPassColorAttachment.loadOp = LoadOp::Clear;
-	renderPassColorAttachment.storeOp = StoreOp::Store;
-	renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
+    // The attachment part of the render pass descriptor describes the target texture of the pass
+    RenderPassColorAttachment renderPassColorAttachment = {};
+    renderPassColorAttachment.view = targetView;
+    renderPassColorAttachment.resolveTarget = nullptr;
+    renderPassColorAttachment.loadOp = LoadOp::Clear;
+    renderPassColorAttachment.storeOp = StoreOp::Store;
+    renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
 #ifndef WEBGPU_BACKEND_WGPU
-	renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
 
-	renderPassDesc.colorAttachmentCount = 1;
-	renderPassDesc.colorAttachments = &renderPassColorAttachment;
-	renderPassDesc.depthStencilAttachment = nullptr;
-	renderPassDesc.timestampWrites = nullptr;
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &renderPassColorAttachment;
+    renderPassDesc.depthStencilAttachment = nullptr;
+    renderPassDesc.timestampWrites = nullptr;
 
-	RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
+    RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 
-	// Select which render pipeline to use
-	renderPass.setPipeline(pipeline);
+    // Select which render pipeline to use
+    renderPass.setPipeline(pipeline);
     // Bind the group before the draw call
     renderPass.setBindGroup(0, bindGroup, 0, nullptr);
     // Draw 1 instance of a 3-vertices shape
-	renderPass.draw(6, 1, 0, 0);
+    renderPass.draw(6, 1, 0, 0);
 
-	renderPass.end();
-	renderPass.release();
+    renderPass.end();
+    renderPass.release();
 
-	// Finally encode and submit the render pass
-	CommandBufferDescriptor cmdBufferDescriptor = {};
-	cmdBufferDescriptor.label = "Command buffer";
-	CommandBuffer command = encoder.finish(cmdBufferDescriptor);
-	encoder.release();
+    // Finally encode and submit the render pass
+    CommandBufferDescriptor cmdBufferDescriptor = {};
+    cmdBufferDescriptor.label = "Command buffer";
+    CommandBuffer command = encoder.finish(cmdBufferDescriptor);
+    encoder.release();
 
-	std::cout << "Submitting command..." << std::endl;
-	queue.submit(1, &command);
-	command.release();
-	std::cout << "Command submitted." << std::endl;
+    std::cout << "Submitting command..." << std::endl;
+    queue.submit(1, &command);
+    command.release();
+    std::cout << "Command submitted." << std::endl;
 
-	// At the enc of the frame
-	targetView.release();
+    // At the end of the frame
+    targetView.release();
 #ifndef __EMSCRIPTEN__
-	surface.present();
+    surface.present();
 #endif
 
 #if defined(WEBGPU_BACKEND_DAWN)
-	device.tick();
+    device.tick();
 #elif defined(WEBGPU_BACKEND_WGPU)
-	device.poll(false);
+    device.poll(false);
 #endif
+
     // Example of updating uTime each frame
     float currentTime = static_cast<float>(glfwGetTime());
     queue.writeBuffer(uTimeBuffer, 0, &currentTime, sizeof(float));
@@ -506,10 +553,10 @@ void App::MainLoop() {
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
-// Convert to normalized coordinates (-1 to 1)
+    // Convert to normalized coordinates (-1 to 1)
     float mousePos[2] = {
-            static_cast<float>((xpos / 1080.0) * 2.0 - 1.0),
-            static_cast<float>((1.0 - (ypos / 720.0)) * 2.0 - 1.0)
+            static_cast<float>((xpos / getWindowWidth()) * 2.0 - 1.0),
+            static_cast<float>((1.0 - (ypos / getWindowHeight())) * 2.0 - 1.0)
     };
 
     queue.writeBuffer(uLightPositionBuffer, 0, &lightPos, sizeof(lightPos));
@@ -517,14 +564,17 @@ void App::MainLoop() {
     float viewPos[3] = {0.0f, 0.0f, 0.0f};  // Sample view position, update as needed
     queue.writeBuffer(uViewPositionBuffer, 0, &viewPos, sizeof(viewPos));
 
-    float fov = 0.7;
+    float fov = 1.;
     queue.writeBuffer(uFovBuffer, 0, &fov, sizeof(float));
 
+    float windowSizeData[2] = { getWindowWidth(), getWindowHeight() };
+    queue.writeBuffer(uWindowSizeBuffer, 0, windowSizeData, sizeof(windowSizeData));
 
-// Update buffer
+    // Update buffer
     queue.writeBuffer(uMouseBuffer, 0, &mousePos, sizeof(mousePos));
-
 }
+
+
 
 bool App::IsRunning() {
 	return !glfwWindowShouldClose(window);
@@ -624,3 +674,34 @@ void App::InitializePipeline() {
     // Release the pipeline layout after it is no longer needed
     pipelineLayout.release();
 }
+
+void App::UpdateBuffers() {
+    // Update uLightPositionBuffer if the light position changes
+    queue.writeBuffer(uLightPositionBuffer, 0, lightPos, sizeof(lightPos));
+
+    // Update uWindowSizeBuffer if the window size changes
+    int windowSize[2] = {static_cast<int>(windowWidth), static_cast<int>(windowHeight)};
+    queue.writeBuffer(uWindowSizeBuffer, 0, windowSize, sizeof(windowSize));
+
+    // If needed, update other buffers like uTime, uMousePosition, etc.
+    // For example:
+    // queue.writeBuffer(uTimeBuffer, 0, &time, sizeof(time));
+}
+
+void App::ReconfigureSurface() {
+    // Reconfigure the surface with the new window size
+    SurfaceConfiguration config = {};
+    config.width = static_cast<uint32_t>(windowWidth);
+    config.height = static_cast<uint32_t>(windowHeight);
+    config.usage = TextureUsage::RenderAttachment;
+    config.format = surfaceFormat;
+    config.presentMode = PresentMode::Fifo;
+    config.alphaMode = CompositeAlphaMode::Auto;
+
+    // Make sure to pass the device when configuring the surface
+    config.device = device;
+
+    surface.configure(config);
+}
+
+

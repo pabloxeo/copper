@@ -26,6 +26,22 @@ public:
     // Return true as long as the main loop should keep on running
     bool IsRunning();
 
+    // Getter functions
+    float getWindowWidth() const { return windowWidth; }
+    float getWindowHeight() const { return windowHeight; }
+
+    // Setter functions
+    void setWindowSize(float width, float height) {
+        windowWidth = width;
+        windowHeight = height;
+    }
+
+    // Function for updating buffers like light position or window size
+    void UpdateBuffers();
+
+    // Reconfigure surface on window resize
+    void ReconfigureSurface();
+
 private:
     TextureView GetNextSurfaceTextureView();
 
@@ -56,11 +72,19 @@ private:
     Buffer uFovBuffer;
     Buffer uLightPositionBuffer;
     Buffer uViewPositionBuffer;
-
+    Buffer uWindowSizeBuffer;
+    float windowWidth;
+    float windowHeight;
     BindGroupLayout bindGroupLayout; // Bind group layout for uTime
 
     float lightPos[3] = {0.0f, 5.0f, 0.0f};  // Initialize light position
     // ... other members ...
+    static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+        App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
+        app->setWindowSize(static_cast<float>(width), static_cast<float>(height));
+        glViewport(0, 0, width, height);
+        app->ReconfigureSurface();  // Ensure the surface is reconfigured after resize
+    }
 
     static void KeyCallback(GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action, [[maybe_unused]] int mods) {
         App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
