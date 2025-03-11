@@ -1,0 +1,16 @@
+/home/pabloxeo/Documents/copper/run/CMakeFiles/copper.dir
+/home/pabloxeo/Documents/copper/run/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/CMakeFiles/rebuild_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw/CMakeFiles/rebuild_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw/src/CMakeFiles/glfw.dir
+/home/pabloxeo/Documents/copper/run/glfw/src/CMakeFiles/update_mappings.dir
+/home/pabloxeo/Documents/copper/run/glfw/src/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw/src/CMakeFiles/rebuild_cache.dir
+/home/pabloxeo/Documents/copper/run/webgpu/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/webgpu/CMakeFiles/rebuild_cache.dir
+/home/pabloxeo/Documents/copper/run/_deps/webgpu-backend-wgpu-build/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/_deps/webgpu-backend-wgpu-build/CMakeFiles/rebuild_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw3webgpu/CMakeFiles/glfw3webgpu.dir
+/home/pabloxeo/Documents/copper/run/glfw3webgpu/CMakeFiles/edit_cache.dir
+/home/pabloxeo/Documents/copper/run/glfw3webgpu/CMakeFiles/rebuild_cache.dir
