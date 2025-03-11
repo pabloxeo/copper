@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0...3.25)
 project(
-        LearnWebGPU
+        Copper
         VERSION 0.1.0
         LANGUAGES CXX C
 )
@@ -27,17 +27,21 @@ endif()
 
 # Add the executable for your project
 add_executable(copper
-        main.cpp
-        src/App.cpp
-        src/App.h
+        src/main.cpp
+        src/core/App.cpp
+        src/core/App.h
         implementations.cpp
-        )
+        src/ui/Window.cpp src/ui/Window.h src/renderer/Renderer.cpp src/renderer/Renderer.h)
 
 # Link OpenGL to your executable
 target_include_directories(copper PRIVATE ${OPENGL_INCLUDE_DIRS})
 
 # Link OpenGL to the executable along with other libraries
 target_link_libraries(copper PRIVATE glfw webgpu glfw3webgpu OpenGL::GL)
+
+target_compile_definitions(copper PRIVATE
+        RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src"
+        )
 
 # Copy WebGPU binaries if needed
 target_copy_webgpu_binaries(copper)

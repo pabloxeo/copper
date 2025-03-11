@@ -1,5 +1,5 @@
 // Include the C++ wrapper instead of the raw header(s)
-#include "src/core/App.h"
+#include "core/App.h"
 
 int main() {
 	App app;
