@@ -16,6 +16,7 @@ endif()
 # Add WebGPU subdirectories
 add_subdirectory(webgpu)
 add_subdirectory(glfw3webgpu)
+add_subdirectory(imgui)
 
 # Find OpenGL
 find_package(OpenGL REQUIRED)
@@ -37,7 +38,7 @@ add_executable(copper
 target_include_directories(copper PRIVATE ${OPENGL_INCLUDE_DIRS})
 
 # Link OpenGL to the executable along with other libraries
-target_link_libraries(copper PRIVATE glfw webgpu glfw3webgpu OpenGL::GL)
+target_link_libraries(copper PRIVATE glfw webgpu glfw3webgpu OpenGL::GL imgui)
 
 target_compile_definitions(copper PRIVATE
         RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src"
