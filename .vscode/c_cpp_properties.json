@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/c++/9", // Adjust this path according to your system
+                "/usr/include/x86_64-linux-gnu/c++/9", // Adjust this path according to your system
+                "/usr/include/c++/9/backward", // Adjust this path according to your system
+                "/usr/lib/gcc/x86_64-linux-gnu/9/include", // Adjust this path according to your system
+                "/usr/local/include",
+                "/usr/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

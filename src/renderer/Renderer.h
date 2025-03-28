@@ -2,8 +2,8 @@
 // Created by pabloxeo on 3/11/25.
 //
 
-#ifndef COPPER_RENDERER_H
-#define COPPER_RENDERER_H
+#ifndef RENDERER_H
+#define RENDERER_H
 
 #include <webgpu/webgpu.hpp>
 #include <GLFW/glfw3.h>
@@ -68,4 +68,4 @@ private:
 
 
 
-#endif //COPPER_RENDERER_H
+#endif //RENDERER_H
