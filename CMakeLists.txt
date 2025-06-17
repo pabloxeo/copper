@@ -40,9 +40,11 @@ target_include_directories(copper PRIVATE
 )
 
 # Declare dependency on the dawn::webgpu_dawn library
-target_link_libraries(copper PRIVATE dawn::webgpu_dawn glfw webgpu_glfw imgui)
+target_link_libraries(copper PRIVATE dawn::webgpu_dawn glfw webgpu_glfw)
 
-target_compile_definitions(copper PRIVATE RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(copper PRIVATE RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src"
+                                          IMGUI_IMPL_WEBGPU_BACKEND_DAWN
+                                          )
 
 # Compiler options
 target_compile_options(copper PRIVATE -Wall -Wextra -pedantic)
