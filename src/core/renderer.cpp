@@ -182,10 +182,11 @@ void Renderer::Render() {
 
     surface.Present();
     instance.ProcessEvents();
+
 }
 
 void Renderer::UpdateWindow() {
-    float windowSizeData[2] = { window->getWindowWidth(), window->getWindowHeight() };
+    //float windowSizeData[2] = { window->getWindowWidth(), window->getWindowHeight() };
     // Update any buffers or resources that depend on the window size
     //queue.WriteBuffer(uWindowSizeBuffer, 0, windowSizeData, sizeof(windowSizeData));
 }

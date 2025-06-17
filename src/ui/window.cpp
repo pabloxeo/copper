@@ -33,7 +33,7 @@ void Window::SetWindowUserPointer(void* pointer) {
     glfwSetWindowUserPointer(window, pointer);
 }
 
-void Window::FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
+void Window::FramebufferSizeCallback(GLFWwindow* window,__attribute_maybe_unused__ int width,__attribute_maybe_unused__ int height) {
     // Get the renderer pointer and call onResize
     auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
     if (renderer != nullptr) {

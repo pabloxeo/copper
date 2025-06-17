@@ -31,7 +31,7 @@ public:
     }
 
     void SetWindowUserPointer(void* pointer);
-    static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
+    static void FramebufferSizeCallback(GLFWwindow* window, __attribute_maybe_unused__ int width, __attribute_maybe_unused__ int height);
 
 private:
     GLFWwindow* window = nullptr;
