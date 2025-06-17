@@ -8,14 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(DAWN_FETCH_DEPENDENCIES ON)
 add_subdirectory("dawn" EXCLUDE_FROM_ALL)
 
-execute_process(
-    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/fix_integer_range_analysis.patch
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dawn
-    RESULT_VARIABLE PATCH_RESULT
-)
-if (NOT PATCH_RESULT EQUAL 0)
-    message(WARNING "Failed to apply Dawn patch. It may already be applied.")
-endif()
 
 # Create the executable
 add_executable(copper 
