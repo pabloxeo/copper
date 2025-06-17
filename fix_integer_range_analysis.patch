@@ -1,0 +1,13 @@
+diff --git a/src/tint/lang/core/ir/analysis/integer_range_analysis.h b/src/tint/lang/core/ir/analysis/integer_range_analysis.h
+index 00576c56c1..a3598bcaa2 100644
+--- a/src/tint/lang/core/ir/analysis/integer_range_analysis.h
++++ b/src/tint/lang/core/ir/analysis/integer_range_analysis.h
+@@ -30,7 +30,7 @@
+ 
+ #include <memory>
+ #include <variant>
+-
++#include <cstdint> 
+ namespace tint::core::ir {
+ class Binary;
+ class Function;
