@@ -202,9 +202,8 @@ fn get_time() -> f32 {
 
 // Update the SDF functions to use constant values instead of uniforms
 fn sdf_sphere(pos: vec3<f32>) -> DistanceColor {
-    let t = get_time() * 0.5; // Simulated time for animation
-    let animated_position = vec3(sin(t) * 2.0, sin(t) * 2.0, cos(t) * 2.0 + 4.0);
-    let distance = length(pos - animated_position) - 0.5; // Sphere radius of 0.5
+    let fixed_position = vec3(1.5, 1.0, 4.0);
+    let distance = length(pos - fixed_position) - 0.5; // Sphere radius of 0.5
     return DistanceColor(distance, vec3(1.0, 0.0, 0.0)); // Red color for the first sphere
 }
 

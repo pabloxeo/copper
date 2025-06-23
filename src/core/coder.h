@@ -12,10 +12,7 @@ using namespace wgpu;
 
 class Coder {
   public:
-    
-
-
-  private:
-    void AddCube();
-}
+    void AddCube(int a, int b);
+    void AddSphere(int a, int b);
+};
 #endif // !CODER_H
