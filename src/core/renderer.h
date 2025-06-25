@@ -10,6 +10,7 @@
 #include <webgpu/webgpu_glfw.h>
 #include "../ui/window.h"
 #include "../ui/controls.h"
+#include "./coder.h"
 
 using namespace wgpu;
 
@@ -19,7 +20,7 @@ public:
 
     void InitGraphics();
 
-    void UpdateUniforms(float time, float mouseX, float mouseY, float lightX, float lightY, float lightZ, float viewX, float viewY, float viewZ, float fov, float windowWidth, float windowHeight);
+    //void UpdateUniforms(float time, float mouseX, float mouseY, float lightX, float lightY, float lightZ, float viewX, float viewY, float viewZ, float fov, float windowWidth, float windowHeight);
 
     void ConfigureSurface();
 
@@ -33,7 +34,11 @@ public:
 
     void OnResize();
 
+    bool pipelineDirty = false;
+
 private:
+
+    Coder shaderCode;
     
     Window *window;
     Controls gui;
@@ -48,7 +53,10 @@ private:
     RenderPipeline pipeline;
 
     BindGroup bindGroup;
+    BindGroupLayout bindGroupLayout;
     Buffer uniformBuffer;
+    Buffer aspectRatioBuffer;
+    BindGroup aspectRatioBindGroup;
 
     wgpu::Texture depthStencilTexture;
 

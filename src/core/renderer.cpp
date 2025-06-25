@@ -43,13 +43,47 @@ bool Renderer::Init(Window *nwindow) {
         }, adapter, instance, device);
     }, adapter, instance);
 
+
     return true;
 }
 
 void Renderer::InitGraphics() {
     ConfigureSurface();
+    // Create aspect ratio buffer
+    float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    wgpu::BufferDescriptor bufferDesc{};
+    bufferDesc.size = sizeof(float);
+    bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
+    aspectRatioBuffer = device.CreateBuffer(&bufferDesc);
+    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+
+    // Create bind group layout and bind group
+    wgpu::BindGroupLayoutEntry entry{};
+    entry.binding = 0;
+    entry.visibility = wgpu::ShaderStage::Fragment;
+    entry.buffer.type = wgpu::BufferBindingType::Uniform;
+    entry.buffer.minBindingSize = sizeof(float);
+
+    wgpu::BindGroupLayoutDescriptor layoutDesc{};
+    layoutDesc.entryCount = 1;
+    layoutDesc.entries = &entry;
+    bindGroupLayout = device.CreateBindGroupLayout(&layoutDesc);
+
+    wgpu::BindGroupEntry bgEntry{};
+    bgEntry.binding = 0;
+    bgEntry.buffer = aspectRatioBuffer;
+    bgEntry.offset = 0;
+    bgEntry.size = sizeof(float);
+
+    wgpu::BindGroupDescriptor bgDesc{};
+    bgDesc.layout = bindGroupLayout;
+    bgDesc.entryCount = 1;
+    bgDesc.entries = &bgEntry;
+    aspectRatioBindGroup = device.CreateBindGroup(&bgDesc);
+
     CreateRenderPipeline();
     gui.initGui(*window, device, format);
+    gui.setCoderAndRenderer(&shaderCode, this);
 } 
 
 void Renderer::ConfigureSurface() {
@@ -69,18 +103,11 @@ void Renderer::ConfigureSurface() {
 
 void Renderer::CreateRenderPipeline() {
     ShaderModuleWGSLDescriptor wgslDesc{};
-    std::ifstream file(RESOURCE_DIR "/shaders/shader.wgsl");
-    file.seekg(0, std::ios::end);
-    size_t size = file.tellg();
-    std::string shaderSource(size, ' ');
-    file.seekg(0);
-    file.read(shaderSource.data(), size);
+    std::string shaderSource = shaderCode.getShaderCode(); // or from file
     wgslDesc.code = shaderSource.c_str();
 
-    ShaderModuleDescriptor shaderModuleDescriptor{
-        .nextInChain = &wgslDesc};
-    ShaderModule shaderModule =
-        device.CreateShaderModule(&shaderModuleDescriptor);
+    ShaderModuleDescriptor shaderModuleDescriptor{ .nextInChain = &wgslDesc };
+    ShaderModule shaderModule = device.CreateShaderModule(&shaderModuleDescriptor);
 
     ColorTargetState colorTargetState{.format = format};
 
@@ -116,11 +143,28 @@ void Renderer::CreateRenderPipeline() {
 	descriptor.primitive.frontFace = FrontFace::CCW;
 	descriptor.primitive.cullMode = CullMode::None;
     descriptor.depthStencil = &depthStencilState;
+
+    wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{};
+    pipelineLayoutDesc.bindGroupLayoutCount = 1;
+    pipelineLayoutDesc.bindGroupLayouts = &bindGroupLayout;
+    auto pipelineLayout = device.CreatePipelineLayout(&pipelineLayoutDesc);
+
+    descriptor.layout = pipelineLayout;
+
     pipeline = device.CreateRenderPipeline(&descriptor);
 
 }
 
 void Renderer::Render() {
+    // Always update aspect ratio buffer before rendering
+    float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+
+    if (pipelineDirty) {
+        ConfigureSurface();      // <-- Add this line
+        CreateRenderPipeline();
+        pipelineDirty = false;
+    }
     // Check if surface is valid before proceeding
     if (!surface) return;
     
@@ -128,18 +172,13 @@ void Renderer::Render() {
     try {
         surface.GetCurrentTexture(&surfaceTexture);
     } catch (...) {
-        // If we fail to get the texture, just skip this frame
         return;
     }
-    
-    // Get actual render target dimensions
     uint32_t actualWidth = surfaceTexture.texture.GetWidth();
     uint32_t actualHeight = surfaceTexture.texture.GetHeight();
-    
-    // Skip rendering if dimensions are invalid
-    if (actualWidth == 0 || actualHeight == 0) {
-        return;
-    }
+    // Update aspect ratio buffer with actual render target size
+    aspect = float(actualWidth) / float(actualHeight);
+    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
 
     RenderPassColorAttachment colorAttachment{
         .view = surfaceTexture.texture.CreateView(),
@@ -164,15 +203,19 @@ void Renderer::Render() {
     CommandEncoder encoder = device.CreateCommandEncoder();
     RenderPassEncoder pass = encoder.BeginRenderPass(&renderpass);
 
-    // Set safe viewport and scissor rect that match actual dimensions
-    pass.SetViewport(0, 0, actualWidth, actualHeight, 0.0f, 1.0f);
-    pass.SetScissorRect(0, 0, actualWidth, actualHeight);
+    // Always use actualWidth/actualHeight from surfaceTexture for viewport/scissor
+    uint32_t scissorWidth = std::min(actualWidth, actualWidth);
+    uint32_t scissorHeight = std::min(actualHeight, actualHeight);
+
+    pass.SetViewport(0, 0, float(scissorWidth), float(scissorHeight), 0.0f, 1.0f);
+    pass.SetScissorRect(0, 0, scissorWidth, scissorHeight);
 
     // Render main content
     pass.SetPipeline(pipeline);
+    pass.SetBindGroup(0, aspectRatioBindGroup); // Add this line
     pass.Draw(6, 1, 0, 0);
 
-    // Update ImGui with correct dimensions
+
     gui.updateGui(pass);
 
     pass.End();
@@ -237,6 +280,10 @@ void Renderer::OnResize() {
     // Then create a new one
     depthStencilTexture = device.CreateTexture(&depthDesc);
     
+    // Update aspect ratio buffer
+    float aspect = float(width) / float(height);
+    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+    
     // Log the resize operation
-    std::cout << "Window resized to " << width << "x" << height << std::endl;
+    //std::cout << "Window resized to " << width << "x" << height << std::endl;
 }

@@ -1,8 +1,10 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
-#include "./controls.h"
 #include <iostream>
+#include "./controls.h"
+#include "../core/coder.h"
+#include "./window.h"
 
 bool Controls::initGui(Window window, wgpu::Device device, wgpu::TextureFormat format) {
     // Setup Dear ImGui context
@@ -31,31 +33,62 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    static float f = 0.0f;
-    static int counter = 0;
-    static bool show_demo_window = true;
-    static bool show_another_window = false;
-    static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    ImGui::Begin("Hello, world!");                               
-    ImGui::Text("This is some useful text.");                     // Display some text (you can use a format strings too)
-    ImGui::Checkbox("Demo Window", &show_demo_window);            // Edit bools storing our window open/close state
-    ImGui::Checkbox("Another Window", &show_another_window);
 
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);                  // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::ColorEdit3("clear color", (float*)&clear_color);       // Edit 3 floats representing a color
+    ImGui::Begin("Spheres");
 
-    if (ImGui::Button("Button"))                                  // Buttons return true when clicked (most widgets return true when edited/activated)
-        counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
+    if (coder) {
+        // Add new sphere
+        static float pos[3] = {0, 0, 4};
+        static float radius = 1.0f;
+        static float color[3] = {1, 0, 0};
+        if (ImGui::InputFloat3("Position", pos) |
+            ImGui::SliderFloat("Radius", &radius, 0.1f, 5.0f) |
+            ImGui::ColorEdit3("Color", color)) {
+            // Optionally preview new sphere
+        }
+        if (ImGui::Button("Add Sphere")) {
+            coder->addSphere(pos[0], pos[1], pos[2], radius, color[0], color[1], color[2]);
+            if (renderer) renderer->pipelineDirty = true;
+        }
+        ImGui::Separator();
 
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        // List and edit existing spheres
+        auto& spheres = coder->getSpheres();
+        for (size_t i = 0; i < spheres.size(); ++i) {
+            ImGui::PushID((int)i);
+            auto& s = spheres[i];
+            bool changed = false;
+            changed |= ImGui::InputFloat3("Pos", &s.x);
+            changed |= ImGui::SliderFloat("Rad", &s.radius, 0.1f, 5.0f);
+            changed |= ImGui::ColorEdit3("Col", &s.r);
+            if (ImGui::Button("Remove")) {
+                spheres.erase(spheres.begin() + i);
+                coder->generateShaderCode();
+                if (renderer) renderer->pipelineDirty = true;
+                ImGui::PopID();
+                break;
+            }
+            if (changed) {
+                coder->generateShaderCode();
+                if (renderer) renderer->pipelineDirty = true;
+            }
+            ImGui::Separator();
+            ImGui::PopID();
+        }
+        if (ImGui::Button("Clear All")) {
+            coder->clearSpheres();
+            if (renderer) renderer->pipelineDirty = true;
+        }
+    }
+
     ImGui::End();
-    // Draw the UI
+
     ImGui::EndFrame();
-    // Convert the UI defined above into low-level drawing commands
     ImGui::Render();
-    // Execute the low-level drawing commands on the WebGPU backend
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass.Get());
+}
+
+void Controls::setCoderAndRenderer(Coder* c, Renderer* r) {
+    coder = c;
+    renderer = r;
 }

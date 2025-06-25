@@ -21,6 +21,8 @@ add_executable(copper
         src/core/renderer.h
         src/ui/controls.cpp
         src/ui/controls.h
+        src/core/coder.cpp
+        src/core/coder.h
 )
 
 # Add ImGui source files
