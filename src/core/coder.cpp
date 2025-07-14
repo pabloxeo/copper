@@ -43,25 +43,27 @@ void Coder::generateShaderCode() {
         "   let rd = normalize(vec3(uv, FOV));\n"
         "   return ray_march(ro, rd);\n"
         "}\n"
-        "fn sdf(pos: vec3<f32>) -> DistanceColor {\n";
+        "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
+        "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
 
-    // Add all spheres
-    if (!spheres.empty()) {
-        shaderCode += "    var minDist = 1e6;\n";
-        shaderCode += "    var color = vec3<f32>(0.0, 0.0, 0.0);\n";
-        for (size_t i = 0; i < spheres.size(); ++i) {
-            const auto& s = spheres[i];
-            shaderCode += "    let d" + std::to_string(i) + " = length(pos - vec3<f32>(" +
-                std::to_string(s.x) + ", " + std::to_string(s.y) + ", " + std::to_string(s.z) +
-                ")) - " + std::to_string(s.radius) + ";\n";
-            shaderCode += "    if (d" + std::to_string(i) + " < minDist) { minDist = d" + std::to_string(i) +
-                "; color = vec3<f32>(" + std::to_string(s.r) + ", " + std::to_string(s.g) + ", " + std::to_string(s.b) + "); }\n";
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        const auto& s = spheres[i];
+        shaderCode += "    let sphere" + std::to_string(i) + " = DistanceColor(length(pos - vec3<f32>(" +
+            std::to_string(s.x) + ", " + std::to_string(s.y) + ", " + std::to_string(s.z) +
+            ")) - " + std::to_string(s.radius) + ", vec3<f32>(" + std::to_string(s.r) + ", " +
+            std::to_string(s.g) + ", " + std::to_string(s.b) + "));\n";
+
+        if (s.operation == "union") {
+            shaderCode += "    result = opSmoothUnion(result, sphere" + std::to_string(i) + ", 0.5);\n";
+        } else if (s.operation == "intersection") {
+            shaderCode += "    result = opSmoothIntersect(result, sphere" + std::to_string(i) + ", 0.5);\n";
+        } else if (s.operation == "subtract") {
+            shaderCode += "    result = opSmoothSubtract(result, sphere" + std::to_string(i) + ", 0.5);\n";
         }
-        shaderCode += "    return DistanceColor(minDist, color);\n";
-    } else {
-        shaderCode += "    return DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
     }
-    shaderCode += "}\n"
+
+    shaderCode += "    return result;\n"
+        "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {\n"
         "   var total_distance: f32 = 0.0;\n"
         "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && total_distance < MAX_DISTANCE; i++) {\n"
@@ -73,11 +75,29 @@ void Coder::generateShaderCode() {
         "       total_distance += dc.distance;\n"
         "   }\n"
         "   return vec4<f32>(0.1, 0.1, 0.1, 1.0);\n"
+        "}\n"
+        "fn opSmoothUnion(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
+        "    let h = clamp(0.5 + 0.5 * (d2.distance - d1.distance) / k, 0.0, 1.0);\n"
+        "    let blended_distance = mix(d2.distance, d1.distance, h) - k * h * (1.0 - h);\n"
+        "    let blended_color = mix(d2.color, d1.color, h); // Blend colors\n"
+        "    return DistanceColor(blended_distance, blended_color);\n"
+        "}\n"
+        "fn opSmoothIntersect(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
+        "    let h = clamp(0.5 - 0.5 * (d2.distance - d1.distance) / k, 0.0, 1.0);\n"
+        "    let blended_distance = mix(d2.distance, d1.distance, h) + k * h * (1.0 - h);\n"
+        "    let blended_color = mix(d2.color, d1.color, h); // Blend colors\n"
+        "    return DistanceColor(blended_distance, blended_color);\n"
+        "}\n"
+        "fn opSmoothSubtract(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
+        "    let h = clamp(0.5 - 0.5 * (d2.distance + d1.distance) / k, 0.0, 1.0);\n"
+        "    let blended_distance = mix(d1.distance, -d2.distance, h) + k * h * (1.0 - h);\n"
+        "    let blended_color = mix(d1.color, vec3<f32>(0.0, 0.0, 0.0), h); // Subtract color\n"
+        "    return DistanceColor(blended_distance, blended_color);\n"
         "}\n";
 }
 
-void Coder::addSphere(float x, float y, float z, float radius, float r, float g, float b) {
-    spheres.push_back({x, y, z, radius, r, g, b});
+void Coder::addSphere(float x, float y, float z, float radius, float r, float g, float b, const std::string& operation) {
+    spheres.push_back({x, y, z, radius, r, g, b, operation});
     generateShaderCode();
 }
 

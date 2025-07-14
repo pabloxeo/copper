@@ -36,11 +36,13 @@ public:
 
     bool pipelineDirty = false;
 
+    Window *window;
+
 private:
 
     Coder shaderCode;
     
-    Window *window;
+   
     Controls gui;
 
     Instance instance;

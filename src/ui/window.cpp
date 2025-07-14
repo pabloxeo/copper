@@ -26,6 +26,9 @@ bool Window::Initialize() {
     windowWidth = static_cast<float>(tempWidth);
     windowHeight = static_cast<float>(tempHeight);
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
     return (window != nullptr);
 }
 
