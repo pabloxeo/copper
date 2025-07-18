@@ -46,23 +46,29 @@ void Coder::generateShaderCode() {
         "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
 
-    for (size_t i = 0; i < spheres.size(); ++i) {
-        const auto& s = spheres[i];
-        shaderCode += "    let sphere" + std::to_string(i) + " = DistanceColor(length(pos - vec3<f32>(" +
-            std::to_string(s.x) + ", " + std::to_string(s.y) + ", " + std::to_string(s.z) +
-            ")) - " + std::to_string(s.radius) + ", vec3<f32>(" + std::to_string(s.r) + ", " +
-            std::to_string(s.g) + ", " + std::to_string(s.b) + "));\n";
+    for (size_t i = 0; i < objects.size(); ++i) {
+        const auto& object = objects[i];
+        if(object.type == "sphere") {
+            shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
+                std::to_string(object.size[0]) + ", vec3<f32>(" + std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
+        } else if(object.type == "box") {
+            shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
+                std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
+                std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
+        }
 
-        if (s.operation == "union") {
-            shaderCode += "    result = opSmoothUnion(result, sphere" + std::to_string(i) + ", 0.5);\n";
-        } else if (s.operation == "intersection") {
-            shaderCode += "    result = opSmoothIntersect(result, sphere" + std::to_string(i) + ", 0.5);\n";
-        } else if (s.operation == "subtract") {
-            shaderCode += "    result = opSmoothSubtract(result, sphere" + std::to_string(i) + ", 0.5);\n";
+        if (i == 0) {
+            shaderCode += "result = " + object.type + std::to_string(i) + ";\n";
+        } else if (object.operation == "union") {
+            shaderCode += "result = opSmoothUnion(result, " + object.type + std::to_string(i) + ", 0.5);";
+        } else if (object.operation == "intersection") {
+            shaderCode += "result = opSmoothIntersect(result, " + object.type + std::to_string(i) + ", 0.5);";
+        } else if (object.operation == "subtract") {
+            shaderCode += "result = opSmoothSubtract(result, " + object.type + std::to_string(i) + ", 0.5);";
         }
     }
-
     shaderCode += "    return result;\n"
+
         "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {\n"
         "   var total_distance: f32 = 0.0;\n"
@@ -93,16 +99,35 @@ void Coder::generateShaderCode() {
         "    let blended_distance = mix(d1.distance, -d2.distance, h) + k * h * (1.0 - h);\n"
         "    let blended_color = mix(d1.color, vec3<f32>(0.0, 0.0, 0.0), h); // Subtract color\n"
         "    return DistanceColor(blended_distance, blended_color);\n"
-        "}\n";
+        "}\n"
+        "fn sdf_sphere(pos: vec3<f32>, center: vec3<f32>, radius: f32, color: vec3<f32>) -> DistanceColor {\n"
+        "    let distance = length(pos - center) - radius;\n"
+        "    return DistanceColor(distance, color); // Red color for sphere\n"
+        "}\n"
+        "fn sdf_box(pos: vec3<f32>, center: vec3<f32>, size: vec3<f32>, color: vec3<f32>) -> DistanceColor {\n"
+        "    let d = abs(pos - center) - size;\n"
+        "    let distance = length(max(d, vec3<f32>(0.0))) + min(max(d.x, max(d.y, d.z)), 0.0);\n"
+        "    return DistanceColor(distance, color);\n"
+        "}\n"
+        ;
 }
 
-void Coder::addSphere(float x, float y, float z, float radius, float r, float g, float b, const std::string& operation) {
-    spheres.push_back({x, y, z, radius, r, g, b, operation});
+void Coder::addSphere(float x, float y, float z, float size, float r, float g, float b, const std::string& operation) {
+    std::string type = "sphere";
+    std::vector<float> vsize ;
+    vsize.push_back(size);
+    objects.push_back({x, y, z, r, g, b, vsize, type, operation});
     generateShaderCode();
 }
 
-void Coder::clearSpheres() {
-    spheres.clear();
+void Coder::addBox(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation) {
+    std::string type = "box";
+    objects.push_back({x, y, z, r, g, b, size, type, operation});
+    generateShaderCode();
+}
+
+void Coder::clearObjects() {
+    objects.clear();
     generateShaderCode();
 }
 

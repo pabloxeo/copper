@@ -35,24 +35,36 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Spheres");
+    ImGui::Begin("Objects");
 
     if (coder) {
-        // Add new sphere
+        // Add new object
+        static int objectTypeIndex = 0; // 0 = sphere, 1 = box
+        const char* objectTypes[] = {"Sphere", "Box"};
+
         static float pos[3] = {0, 0, 4};
-        static float radius = 1.0f;
+        static float size[3] = {1.0f, 1.0f, 1.0f}; // For spheres, only size[0] is used
         static float color[3] = {1, 0, 0};
         static int operationIndex = 0; // 0 = union, 1 = intersection, 2 = subtract
         const char* operations[] = {"Union", "Intersection", "Subtract"};
 
-        if (ImGui::InputFloat3("Position", pos) |
-            ImGui::SliderFloat("Radius", &radius, 0.1f, 5.0f) |
-            ImGui::ColorEdit3("Color", color) |
-            ImGui::Combo("Operation", &operationIndex, operations, IM_ARRAYSIZE(operations))) {
-            // Optionally preview new sphere
+        // Select object type
+        ImGui::Combo("Object Type", &objectTypeIndex, objectTypes, IM_ARRAYSIZE(objectTypes));
+
+        // Common inputs for all objects
+        ImGui::InputFloat3("Position", pos);
+        ImGui::ColorEdit3("Color", color);
+        ImGui::Combo("Operation", &operationIndex, operations, IM_ARRAYSIZE(operations));
+
+        // Inputs specific to the selected object type
+        if (objectTypeIndex == 0) { // Sphere
+            ImGui::SliderFloat("Radius", &size[0], 0.1f, 5.0f);
+        } else if (objectTypeIndex == 1) { // Box
+            ImGui::InputFloat3("Size (XYZ)", size);
         }
 
-        if (ImGui::Button("Add Sphere")) {
+        // Add object button
+        if (ImGui::Button("Add Object")) {
             std::string operation;
             if (operationIndex == 0) {
                 operation = "union";
@@ -61,26 +73,46 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
             } else {
                 operation = "subtract";
             }
-            coder->addSphere(pos[0], pos[1], pos[2], radius, color[0], color[1], color[2], operation);
+
+            if (objectTypeIndex == 0) {
+                // Add sphere
+                coder->addSphere(pos[0], pos[1], pos[2], size[0], color[0], color[1], color[2], operation);
+            } else if (objectTypeIndex == 1) {
+                // Add box
+                coder->addBox(pos[0], pos[1], pos[2], {size[0], size[1], size[2]}, color[0], color[1], color[2], operation);
+            }
+
             if (renderer) renderer->pipelineDirty = true;
         }
+
         ImGui::Separator();
 
-        // List and edit existing spheres
-        auto& spheres = coder->getSpheres();
-        for (size_t i = 0; i < spheres.size(); ++i) {
+        // List and edit existing objects
+        auto& objects = coder->getObjects();
+        for (size_t i = 0; i < objects.size(); ++i) {
             ImGui::PushID((int)i);
-            auto& s = spheres[i];
+            auto& obj = objects[i];
             bool changed = false;
 
-            changed |= ImGui::InputFloat3("Pos", &s.x);
-            changed |= ImGui::SliderFloat("Rad", &s.radius, 0.1f, 5.0f);
-            changed |= ImGui::ColorEdit3("Col", &s.r);
+            // Display object type
+            ImGui::Text("Type: %s", obj.type.c_str());
 
+            // Common inputs for all objects
+            changed |= ImGui::InputFloat3("Pos", &obj.x);
+            changed |= ImGui::ColorEdit3("Col", &obj.r);
+
+            // Inputs specific to the object type
+            if (obj.type == "sphere") {
+                changed |= ImGui::SliderFloat("Radius", &obj.size[0], 0.1f, 5.0f);
+            } else if (obj.type == "box") {
+                changed |= ImGui::InputFloat3("Size (XYZ)", obj.size.data());
+            }
+
+            // Operation selection
             int currentOperationIndex;
-            if (s.operation == "union") {
+            if (obj.operation == "union") {
                 currentOperationIndex = 0;
-            } else if (s.operation == "intersection") {
+            } else if (obj.operation == "intersection") {
                 currentOperationIndex = 1;
             } else {
                 currentOperationIndex = 2;
@@ -88,17 +120,18 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
 
             if (ImGui::Combo("Operation", &currentOperationIndex, operations, IM_ARRAYSIZE(operations))) {
                 if (currentOperationIndex == 0) {
-                    s.operation = "union";
+                    obj.operation = "union";
                 } else if (currentOperationIndex == 1) {
-                    s.operation = "intersection";
+                    obj.operation = "intersection";
                 } else {
-                    s.operation = "subtract";
+                    obj.operation = "subtract";
                 }
                 changed = true;
             }
 
+            // Remove object button
             if (ImGui::Button("Remove")) {
-                spheres.erase(spheres.begin() + i);
+                objects.erase(objects.begin() + i);
                 coder->generateShaderCode();
                 if (renderer) renderer->pipelineDirty = true;
                 ImGui::PopID();
@@ -115,7 +148,7 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
         }
 
         if (ImGui::Button("Clear All")) {
-            coder->clearSpheres();
+            coder->clearObjects();
             if (renderer) renderer->pipelineDirty = true;
         }
     }
