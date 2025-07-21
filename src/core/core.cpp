@@ -31,5 +31,5 @@ void Core::MainLoop()
 }
 
 bool Core::IsRunning() {
-    return !glfwWindowShouldClose(window.GetWindow());
+    return !glfwWindowShouldClose(window.getWindow());
 }

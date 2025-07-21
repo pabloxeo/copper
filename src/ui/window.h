@@ -11,7 +11,7 @@ public:
 
     bool Initialize();
 
-    GLFWwindow* GetWindow() { return window; }
+    GLFWwindow* getWindow() { return window; }
 
     // Getter functions
     uint32_t getWindowWidth() const { return windowWidth; }
@@ -32,6 +32,7 @@ public:
 
     void SetWindowUserPointer(void* pointer);
     static void FramebufferSizeCallback(GLFWwindow* window, __attribute_maybe_unused__ int width, __attribute_maybe_unused__ int height);
+    static void glfwSetMouseButtonCallback(GLFWwindow *window, GLFWmousebuttonfun callback);
 
 private:
     GLFWwindow* window = nullptr;

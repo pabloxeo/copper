@@ -14,7 +14,7 @@ bool Controls::initGui(Window window, wgpu::Device device, wgpu::TextureFormat f
     io.MouseDrawCursor = true; // Enable mouse cursor drawing
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window.GetWindow(), true);
+    ImGui_ImplGlfw_InitForOpenGL(window.getWindow(), true);
     ImGui_ImplWGPU_InitInfo initInfo = {};
     initInfo.Device = device.Get();
     initInfo.DepthStencilFormat = WGPUTextureFormat::WGPUTextureFormat_Depth24Plus;

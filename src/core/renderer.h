@@ -11,6 +11,8 @@
 #include "../ui/window.h"
 #include "../ui/controls.h"
 #include "./coder.h"
+#include "./Camera.h"
+#include "./CameraController.h"
 
 using namespace wgpu;
 
@@ -38,6 +40,10 @@ public:
 
     Window *window;
 
+    Camera *camera;
+
+    CameraController *cameraController;
+
 private:
 
     Coder shaderCode;
@@ -57,10 +63,10 @@ private:
     BindGroup bindGroup;
     BindGroupLayout bindGroupLayout;
     Buffer uniformBuffer;
-    Buffer aspectRatioBuffer;
+    Buffer uniformsBuffer;
     BindGroup aspectRatioBindGroup;
 
-    wgpu::Texture depthStencilTexture;
+    Texture depthStencilTexture;
 
 };
 

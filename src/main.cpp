@@ -1,9 +1,6 @@
-#include <webgpu/webgpu_glfw.h>
-#include <webgpu/webgpu_cpp.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
-#include <core/core.h>
+#include "core/core.h"
 
 
 

@@ -2,7 +2,6 @@
 // Created by pabloxeo on 3/11/25.
 //
 
-#include "../ui/window.h"
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -12,7 +11,7 @@
 #include <GLFW/glfw3.h>
 #include <webgpu/webgpu_glfw.h>
 #include "../utils/wgpu-util.h"
-#include "renderer.h"
+
 
 
 #ifndef RESOURCE_DIR
@@ -29,7 +28,7 @@ bool Renderer::Init(Window *nwindow) {
     window->SetWindowUserPointer(this);
     
     // Set resize callback
-    glfwSetFramebufferSizeCallback(window->GetWindow(), Window::FramebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(window->getWindow(), Window::FramebufferSizeCallback);
     
     InstanceDescriptor instanceDesc{};
     instanceDesc.capabilities.timedWaitAnyEnable = true;
@@ -43,39 +42,50 @@ bool Renderer::Init(Window *nwindow) {
         }, adapter, instance, device);
     }, adapter, instance);
 
+    this->camera = new Camera();
+    this->cameraController = new CameraController(this->camera, nwindow->getWindow());
+
 
     return true;
 }
 
+struct Uniforms {
+    glm::mat4 mvp_matrix; // Model-View-Projection matrix
+    float aspect_ratio;
+    glm::vec3 padding; // Padding to ensure 16-byte alignment
+};
+
 void Renderer::InitGraphics() {
     ConfigureSurface();
     // Create aspect ratio buffer
-    float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
-    wgpu::BufferDescriptor bufferDesc{};
-    bufferDesc.size = sizeof(float);
-    bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
-    aspectRatioBuffer = device.CreateBuffer(&bufferDesc);
-    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+    Uniforms uniformsData;
+    uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    uniformsData.mvp_matrix = glm::mat4(1.0f);
+    BufferDescriptor bufferDesc{};
+    bufferDesc.size = sizeof(Uniforms);
+    bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+    uniformsBuffer = device.CreateBuffer(&bufferDesc);
+    device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
     // Create bind group layout and bind group
-    wgpu::BindGroupLayoutEntry entry{};
+    BindGroupLayoutEntry entry{};
     entry.binding = 0;
-    entry.visibility = wgpu::ShaderStage::Fragment;
-    entry.buffer.type = wgpu::BufferBindingType::Uniform;
-    entry.buffer.minBindingSize = sizeof(float);
+    entry.visibility = ShaderStage::Fragment;
+    entry.buffer.type = BufferBindingType::Uniform;
+    entry.buffer.minBindingSize = sizeof(Uniforms);
 
-    wgpu::BindGroupLayoutDescriptor layoutDesc{};
+    BindGroupLayoutDescriptor layoutDesc{};
     layoutDesc.entryCount = 1;
     layoutDesc.entries = &entry;
     bindGroupLayout = device.CreateBindGroupLayout(&layoutDesc);
 
-    wgpu::BindGroupEntry bgEntry{};
+    BindGroupEntry bgEntry{};
     bgEntry.binding = 0;
-    bgEntry.buffer = aspectRatioBuffer;
+    bgEntry.buffer = uniformsBuffer;
     bgEntry.offset = 0;
-    bgEntry.size = sizeof(float);
+    bgEntry.size = sizeof(Uniforms);
 
-    wgpu::BindGroupDescriptor bgDesc{};
+    BindGroupDescriptor bgDesc{};
     bgDesc.layout = bindGroupLayout;
     bgDesc.entryCount = 1;
     bgDesc.entries = &bgEntry;
@@ -87,7 +97,7 @@ void Renderer::InitGraphics() {
 } 
 
 void Renderer::ConfigureSurface() {
-    surface = glfw::CreateSurfaceForWindow(instance, window->GetWindow());
+    surface = glfw::CreateSurfaceForWindow(instance, window->getWindow());
     SurfaceCapabilities capabilities;
     surface.GetCapabilities(adapter, &capabilities);
     format = capabilities.formats[0];
@@ -117,22 +127,22 @@ void Renderer::CreateRenderPipeline() {
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTargetState;
 
-    wgpu::TextureDescriptor depthDesc{};
+    TextureDescriptor depthDesc{};
     depthDesc.size.width = window->getWindowWidth();
     depthDesc.size.height = window->getWindowHeight();
     depthDesc.size.depthOrArrayLayers = 1;
     depthDesc.mipLevelCount = 1;
     depthDesc.sampleCount = 1;
-    depthDesc.dimension = wgpu::TextureDimension::e2D;
-    depthDesc.format = wgpu::TextureFormat::Depth24Plus;
-    depthDesc.usage = wgpu::TextureUsage::RenderAttachment;
+    depthDesc.dimension = TextureDimension::e2D;
+    depthDesc.format = TextureFormat::Depth24Plus;
+    depthDesc.usage = TextureUsage::RenderAttachment;
 
     depthStencilTexture = device.CreateTexture(&depthDesc);
 
-    wgpu::DepthStencilState depthStencilState{};
-    depthStencilState.format = wgpu::TextureFormat::Depth24Plus;
+    DepthStencilState depthStencilState{};
+    depthStencilState.format = TextureFormat::Depth24Plus;
     depthStencilState.depthWriteEnabled = true;
-    depthStencilState.depthCompare = wgpu::CompareFunction::Less;
+    depthStencilState.depthCompare = CompareFunction::Less;
 
     RenderPipelineDescriptor descriptor{
         .vertex = {.module = shaderModule,
@@ -144,7 +154,7 @@ void Renderer::CreateRenderPipeline() {
 	descriptor.primitive.cullMode = CullMode::None;
     descriptor.depthStencil = &depthStencilState;
 
-    wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{};
+    PipelineLayoutDescriptor pipelineLayoutDesc{};
     pipelineLayoutDesc.bindGroupLayoutCount = 1;
     pipelineLayoutDesc.bindGroupLayouts = &bindGroupLayout;
     auto pipelineLayout = device.CreatePipelineLayout(&pipelineLayoutDesc);
@@ -155,13 +165,28 @@ void Renderer::CreateRenderPipeline() {
 
 }
 
+void pprintM4(const glm::mat4& mvp_matrix) {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            std::cout << mvp_matrix[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
 void Renderer::Render() {
+
+    this->cameraController->update_camera(this->window->getWindow());
+
     // Always update aspect ratio buffer before rendering
-    float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
-    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+    // float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    // Uniforms uniformsData;
+    // uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    // uniformsData.mvp_matrix = this->camera->get_view_matrix();
+    // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
     if (pipelineDirty) {
-        ConfigureSurface();      // <-- Add this line
+        ConfigureSurface(); 
         CreateRenderPipeline();
         pipelineDirty = false;
     }
@@ -177,8 +202,33 @@ void Renderer::Render() {
     uint32_t actualWidth = surfaceTexture.texture.GetWidth();
     uint32_t actualHeight = surfaceTexture.texture.GetHeight();
     // Update aspect ratio buffer with actual render target size
-    aspect = float(actualWidth) / float(actualHeight);
-    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+    
+    // aspect = float(actualWidth) / float(actualHeight);
+    // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &aspect, sizeof(float));
+    
+    Uniforms uniformsData;
+    uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
+    uniformsData.mvp_matrix = this->camera->get_view_matrix();
+
+    // "   let cam = transpose(uniforms.mvp_matrix);\n"
+    // "   let right = cam[0].xyz;\n"
+    // "   let up = cam[1].xyz;\n"
+    // "   let forward = cam[2].xyz;\n"
+    // "   let eye = cam[3].x * right + cam[3].y * up + cam[3].z * forward;\n"
+
+    auto cam = glm::transpose(uniformsData.mvp_matrix);
+    auto right = cam[0];
+    auto up = cam[1];
+    auto forward = cam[2];
+    auto eye = cam[0].w * right + cam[1].w * up + cam[2].w * forward;
+    std::cout << "Camera Eye Position: " << eye.x << ", " << eye.y << ", " << eye.z << std::endl;
+    std::cout << "cam[0].w: " << cam[0].w << ", cam[1].w: " << cam[1].w << ", cam[2].w: " << cam[2].w << std::endl;
+
+
+    // print the mvp_matrix
+    std::cout << "MVP Matrix:" << std::endl;
+    pprintM4(glm::transpose(uniformsData.mvp_matrix));
+    device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
     RenderPassColorAttachment colorAttachment{
         .view = surfaceTexture.texture.CreateView(),
@@ -248,7 +298,7 @@ void Renderer::OnResize() {
     
     // Get the new framebuffer size
     int width, height;
-    glfwGetFramebufferSize(window->GetWindow(), &width, &height);
+    glfwGetFramebufferSize(window->getWindow(), &width, &height);
     
     // Make sure dimensions are valid
     if (width < 64) width = 64;
@@ -264,15 +314,15 @@ void Renderer::OnResize() {
     surface.Configure(&config);
     
     // Recreate depth texture
-    wgpu::TextureDescriptor depthDesc{};
+    TextureDescriptor depthDesc{};
     depthDesc.size.width = static_cast<uint32_t>(width);
     depthDesc.size.height = static_cast<uint32_t>(height);
     depthDesc.size.depthOrArrayLayers = 1;
     depthDesc.mipLevelCount = 1;
     depthDesc.sampleCount = 1;
-    depthDesc.dimension = wgpu::TextureDimension::e2D;
-    depthDesc.format = wgpu::TextureFormat::Depth24Plus;
-    depthDesc.usage = wgpu::TextureUsage::RenderAttachment;
+    depthDesc.dimension = TextureDimension::e2D;
+    depthDesc.format = TextureFormat::Depth24Plus;
+    depthDesc.usage = TextureUsage::RenderAttachment;
     
     // First destroy the old texture (explicitly release it)
     depthStencilTexture = {};
@@ -282,7 +332,7 @@ void Renderer::OnResize() {
     
     // Update aspect ratio buffer
     float aspect = float(width) / float(height);
-    device.GetQueue().WriteBuffer(aspectRatioBuffer, 0, &aspect, sizeof(float));
+    // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &aspect, sizeof(float));
     
     // Log the resize operation
     //std::cout << "Window resized to " << width << "x" << height << std::endl;
