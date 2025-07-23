@@ -49,16 +49,10 @@ bool Renderer::Init(Window *nwindow) {
     return true;
 }
 
-struct Uniforms {
-    glm::mat4 mvp_matrix; // Model-View-Projection matrix
-    float aspect_ratio;
-    glm::vec3 padding; // Padding to ensure 16-byte alignment
-};
 
 void Renderer::InitGraphics() {
     ConfigureSurface();
     // Create aspect ratio buffer
-    Uniforms uniformsData;
     uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = glm::mat4(1.0f);
     BufferDescriptor bufferDesc{};
@@ -94,6 +88,7 @@ void Renderer::InitGraphics() {
     CreateRenderPipeline();
     gui.initGui(*window, device, format);
     gui.setCoderAndRenderer(&shaderCode, this);
+
 } 
 
 void Renderer::ConfigureSurface() {
@@ -165,15 +160,6 @@ void Renderer::CreateRenderPipeline() {
 
 }
 
-void pprintM4(const glm::mat4& mvp_matrix) {
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            std::cout << mvp_matrix[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
 void Renderer::Render() {
 
     this->cameraController->update_camera(this->window->getWindow());
@@ -203,12 +189,12 @@ void Renderer::Render() {
     uint32_t actualHeight = surfaceTexture.texture.GetHeight();
     // Update aspect ratio buffer with actual render target size
     
-    // aspect = float(actualWidth) / float(actualHeight);
+    
     // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &aspect, sizeof(float));
     
     Uniforms uniformsData;
-    uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = this->camera->get_view_matrix();
+    uniformsData.aspect_ratio = float(actualWidth) / float(actualHeight);
 
     // "   let cam = transpose(uniforms.mvp_matrix);\n"
     // "   let right = cam[0].xyz;\n"
@@ -221,13 +207,9 @@ void Renderer::Render() {
     auto up = cam[1];
     auto forward = cam[2];
     auto eye = cam[0].w * right + cam[1].w * up + cam[2].w * forward;
-    std::cout << "Camera Eye Position: " << eye.x << ", " << eye.y << ", " << eye.z << std::endl;
-    std::cout << "cam[0].w: " << cam[0].w << ", cam[1].w: " << cam[1].w << ", cam[2].w: " << cam[2].w << std::endl;
+    //std::cout << "Camera Eye Position: " << eye.x << ", " << eye.y << ", " << eye.z << std::endl;
+    //std::cout << "cam[0].w: " << cam[0].w << ", cam[1].w: " << cam[1].w << ", cam[2].w: " << cam[2].w << std::endl;
 
-
-    // print the mvp_matrix
-    std::cout << "MVP Matrix:" << std::endl;
-    pprintM4(glm::transpose(uniformsData.mvp_matrix));
     device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
     RenderPassColorAttachment colorAttachment{
@@ -300,10 +282,6 @@ void Renderer::OnResize() {
     int width, height;
     glfwGetFramebufferSize(window->getWindow(), &width, &height);
     
-    // Make sure dimensions are valid
-    if (width < 64) width = 64;
-    if (height < 64) height = 64;
-    
     // Configure surface with new dimensions
     SurfaceConfiguration config{};
     config.device = device;
@@ -329,10 +307,6 @@ void Renderer::OnResize() {
     
     // Then create a new one
     depthStencilTexture = device.CreateTexture(&depthDesc);
-    
-    // Update aspect ratio buffer
-    float aspect = float(width) / float(height);
-    // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &aspect, sizeof(float));
     
     // Log the resize operation
     //std::cout << "Window resized to " << width << "x" << height << std::endl;

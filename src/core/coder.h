@@ -2,6 +2,7 @@
 #define CODER_H
 
 #include <vector>
+#include <string>
 
 struct Object {
     float x, y, z;

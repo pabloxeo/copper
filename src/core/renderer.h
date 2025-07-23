@@ -16,6 +16,13 @@
 
 using namespace wgpu;
 
+struct Uniforms {
+    glm::mat4 mvp_matrix; // Model-View-Projection matrix
+    float aspect_ratio;
+    glm::vec3 padding; // Padding to ensure 16-byte alignment
+};
+
+
 class Renderer {
 public:
     bool Init(Window *window);
@@ -27,6 +34,8 @@ public:
     void ConfigureSurface();
 
     void CreateRenderPipeline();
+
+    void CreateAxisPipeline();
 
     void Render();
 
@@ -48,6 +57,7 @@ private:
 
     Coder shaderCode;
     
+    Uniforms uniformsData;
    
     Controls gui;
 

@@ -1,6 +1,7 @@
 #include "CameraController.h"
 #include <atomic>
 #include <GLFW/glfw3.h>
+#include <imgui.h>
 
 std::atomic<int> scroll_direction(0);
 
@@ -88,6 +89,9 @@ void CameraController::check_drag(GLFWwindow *window) {
 }
 
 void CameraController::update_camera(GLFWwindow *window) {
+    if (ImGui::GetIO().WantCaptureMouse) {
+        return;  // GUI is using the mouse, skip camera interaction
+    }
     if (scroll_direction != 0) {
         float speed = this->radius * 0.1f;
         this->radius += speed * (float) (-scroll_direction);
@@ -104,7 +108,7 @@ void CameraController::update_camera(GLFWwindow *window) {
 
         if ((int) x_pos != (int) this->mouse_drag_state.right_btn_drag_start_pos.x ||
             (int) y_pos != (int) this->mouse_drag_state.right_btn_drag_start_pos.y) {
-            float speed = 0.01f;
+            float speed =  this->radius / 1000.0f;
             glm::vec2 translate_screen_space = glm::vec2(x_pos - this->mouse_drag_state.right_btn_drag_start_pos.x,
                                                          y_pos - this->mouse_drag_state.right_btn_drag_start_pos.y)
                                                * speed;
@@ -112,7 +116,7 @@ void CameraController::update_camera(GLFWwindow *window) {
             glm::vec3 camera_x = this->camera->get_right_vector();
             glm::vec3 camera_z = this->camera->get_view_dir();
             auto norm_v = glm::normalize(translate_screen_space);
-            float angle = glm::atan(norm_v.y, -norm_v.x);
+            float angle = glm::atan(-norm_v.y, norm_v.x);
 
             glm::vec3 translate_world_space = glm::rotate(glm::mat4(1.0f), -M_PIf + angle, camera_z) *
                                               glm::vec4(camera_x.x, camera_x.y, camera_x.z, 1.0f);
@@ -152,7 +156,7 @@ void CameraController::update_camera(GLFWwindow *window) {
     float angle_x = delta_x * (float) (x_pos - this->mouse_drag_state.left_btn_drag_start_pos.x);
 
     this->vert_angle -= angle_y;
-    this->horiz_angle += (this->upside_down ? -1.0f : 1.0f) * angle_x;
+    this->horiz_angle += (this->upside_down ? 1.0f : -1.0f) * angle_x;
 
     if (this->vert_angle > M_PI) {
         this->vert_angle -= 2 * M_PI;
@@ -173,7 +177,7 @@ void CameraController::update_camera(GLFWwindow *window) {
     // this->vert_angle = glm::clamp(this->vert_angle, -M_PI_2 + 0.01f, M_PI_2 - 0.01f);
 
 
-    glm::quat rot_matrix_y = glm::angleAxis(-this->vert_angle, glm::vec3(1, 0, 0));
+    glm::quat rot_matrix_y = glm::angleAxis(this->vert_angle, glm::vec3(1, 0, 0));
     glm::quat rot_matrix_x = glm::angleAxis(this->horiz_angle, glm::vec3(0, 1, 0));
 
     glm::quat q = (rot_matrix_y * rot_matrix_x);
@@ -189,7 +193,7 @@ glm::vec3 CameraController::get_updated_eye() {
     return glm::vec3(
             glm::cos(this->vert_angle) * glm::sin(this->horiz_angle),
             glm::sin(this->vert_angle),
-            -glm::cos(this->vert_angle) * glm::cos(this->horiz_angle)
+            glm::cos(this->vert_angle) * glm::cos(this->horiz_angle)
     ) * this->radius;
 }
 
@@ -210,7 +214,7 @@ void CameraController::update_view_matrix() {
 
     matrix[0][3] = translation.x;
     matrix[1][3] = translation.y;
-    matrix[2][3] = translation.z + -this->radius;
+    matrix[2][3] = translation.z - this->radius;
 
     this->camera->set_view_matrix(glm::transpose(matrix));
 }
