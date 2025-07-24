@@ -46,7 +46,7 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
         static float size[3] = {1.0f, 1.0f, 1.0f}; // For spheres, only size[0] is used
         static float color[3] = {1, 0, 0};
         static int operationIndex = 0; // 0 = union, 1 = intersection, 2 = subtract
-        const char* operations[] = {"Union", "Intersection", "Subtract"};
+        const char* operations[] = {"Smooth Union", "Intersection", "Smooth Subtract", "Union", "Subtract"};
 
         // Select object type
         ImGui::Combo("Object Type", &objectTypeIndex, objectTypes, IM_ARRAYSIZE(objectTypes));
@@ -67,10 +67,14 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
         if (ImGui::Button("Add Object")) {
             std::string operation;
             if (operationIndex == 0) {
-                operation = "union";
+                operation = "smoothunion";
             } else if (operationIndex == 1) {
                 operation = "intersection";
-            } else {
+            } else if (operationIndex == 2) {
+                operation = "smothsubtract";
+            }else if (operationIndex == 3) {
+                operation = "union";
+            } else if (operationIndex == 4) {
                 operation = "subtract";
             }
 
@@ -110,20 +114,30 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
 
             // Operation selection
             int currentOperationIndex;
-            if (obj.operation == "union") {
+            if (obj.operation == "smoothunion") {
                 currentOperationIndex = 0;
             } else if (obj.operation == "intersection") {
                 currentOperationIndex = 1;
-            } else {
+            } else if (obj.operation == "smoothsubtract") {
                 currentOperationIndex = 2;
+            }else if (obj.operation == "union") {
+                currentOperationIndex = 3;
+            } else if (obj.operation == "subtract") {
+                currentOperationIndex = 4;
+            } else {
+                currentOperationIndex = 0; // Default to union
             }
 
             if (ImGui::Combo("Operation", &currentOperationIndex, operations, IM_ARRAYSIZE(operations))) {
                 if (currentOperationIndex == 0) {
-                    obj.operation = "union";
+                    obj.operation = "smoothunion";
                 } else if (currentOperationIndex == 1) {
                     obj.operation = "intersection";
-                } else {
+                } else if (currentOperationIndex == 2) {
+                    obj.operation = "smoothsubtract";
+                }else if (currentOperationIndex == 3) {
+                    obj.operation = "union";
+                } else if (currentOperationIndex == 4) {
                     obj.operation = "subtract";
                 }
                 changed = true;
@@ -163,4 +177,8 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
 void Controls::setCoderAndRenderer(Coder* c, Renderer* r) {
     coder = c;
     renderer = r;
+
+    coder->addBox(0, 0, 0, {1.0f, 1.0f, 1.0f}, 1.0f, 1.0f, 1.0f, "union");
+    coder->generateShaderCode();
+    renderer->pipelineDirty = true;
 }

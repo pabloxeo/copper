@@ -87,7 +87,7 @@ void Renderer::InitGraphics() {
 
     CreateRenderPipeline();
     gui.initGui(*window, device, format);
-    gui.setCoderAndRenderer(&shaderCode, this);
+    gui.setCoderAndRenderer(&coder, this);
 
 } 
 
@@ -108,7 +108,7 @@ void Renderer::ConfigureSurface() {
 
 void Renderer::CreateRenderPipeline() {
     ShaderModuleWGSLDescriptor wgslDesc{};
-    std::string shaderSource = shaderCode.getShaderCode(); // or from file
+    std::string shaderSource = coder.getShaderCode(); // or from file
     wgslDesc.code = shaderSource.c_str();
 
     ShaderModuleDescriptor shaderModuleDescriptor{ .nextInChain = &wgslDesc };

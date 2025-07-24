@@ -40,7 +40,7 @@ void Coder::generateShaderCode() {
         "    output.clip_pos = vec4<f32>(p, 0.0, 1.0);\n"
         "    return output;\n"
         "}\n"
-        "const MAX_MARCHING_STEPS: i32 = 100;\n"
+        "const MAX_MARCHING_STEPS: i32 = 10000;\n"
         "const MIN_DISTANCE: f32 = 0.001;\n"
         "const MAX_DISTANCE: f32 = 100.0;\n"
         "@fragment\n"
@@ -70,18 +70,23 @@ void Coder::generateShaderCode() {
         "    let nz = sdf(p + dz).distance - sdf(p - dz).distance;\n"
         "    return normalize(vec3<f32>(nx, ny, nz));\n"
         "}\n"
-        "fn calculate_shadow(origin: vec3<f32>, light_dir: vec3<f32>) -> f32 {\n"
-        "    let max_dist = length(LIGHT_POSITION - origin);\n"
-        "    var t: f32 = 0.01;\n"
-        "    for (var i = 0; i < MAX_MARCHING_STEPS && t < max_dist; i++) {\n"
-        "        let pos = origin + light_dir * t;\n"
-        "        let d = sdf(pos).distance;\n"
-        "        if (d < MIN_DISTANCE) {\n"
-        "            return 1.0;\n"
-        "        }\n"
-        "        t += d;\n"
-        "    }\n"
-        "    return 0.0;\n"
+        "fn calculate_shadow(ro: vec3<f32>, rd: vec3<f32>) -> f32 {\n"
+        "   var res: f32 = 1.0;\n"
+        "   var t: f32 = 0.05;\n"
+        "   let max_t: f32 = 20.0;\n"
+        "   let softness: f32 = 0.2;\n"
+
+        "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && t < max_t; i++) {\n"
+        "       let pos = ro + rd * t;\n"
+        "       let h = sdf(pos).distance;\n"
+        "       res = min(res, h / (softness * t));\n"
+        "       t = t + clamp(h, 0.005, 0.5);\n"
+        "       if (res < -1.0 || t > max_t) {\n"
+        "           break;\n"
+        "       }\n"
+        "   }\n"
+        "   res = max(res, -1.0);\n"
+        "   return (0.25 * (1.0 + res) * (1.0 + res) * (2.0 - res));\n"
         "}\n"
         "fn blinn_phong_lighting(pos: vec3<f32>, normal: vec3<f32>, view_dir: vec3<f32>, base_color: vec3<f32>) -> vec3<f32> {\n"
         "    let light_dir = normalize(LIGHT_POSITION - pos);\n"
@@ -93,7 +98,7 @@ void Coder::generateShaderCode() {
         "    let spec = pow(max(dot(normal, halfway), 0.0), 32.0);\n"
         "    let specular = spec * light_color;\n"
         "    let shadow = calculate_shadow(pos, light_dir);\n"
-        "    return base_color * (ambient + (1.0 - shadow) * (diffuse + specular));\n"
+        "    return base_color * (ambient + (1.0 + shadow) * (diffuse + specular));\n"
         "}\n"
         "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
@@ -111,15 +116,25 @@ void Coder::generateShaderCode() {
 
         if (i == 0) {
             shaderCode += "result = " + object.type + std::to_string(i) + ";\n";
-        } else if (object.operation == "union") {
+        } else if (object.operation == "smoothunion") {
             shaderCode += "result = opSmoothUnion(result, " + object.type + std::to_string(i) + ", 0.5);";
         } else if (object.operation == "intersection") {
             shaderCode += "result = opSmoothIntersect(result, " + object.type + std::to_string(i) + ", 0.5);";
-        } else if (object.operation == "subtract") {
+        } else if (object.operation == "smoothsubtract") {
             shaderCode += "result = opSmoothSubtract(result, " + object.type + std::to_string(i) + ", 0.5);";
+        }else if (object.operation == "union"){
+            shaderCode += "result = opUnion(result, " + object.type + std::to_string(i) + ");\n";
+        } else if (object.operation == "subtract") {
+            shaderCode += "result = opSubtract(result, " + object.type + std::to_string(i) + ");\n";
         }
     }
-    shaderCode += "    return result;\n"
+
+    shaderCode +=
+        "    let floor = sdf_plane(pos);\n"
+        "    if(floor.distance < result.distance) {\n"
+        "        result = floor;\n"
+        "    }\n"
+        "    return result;\n"
         "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {\n"
         "   var total_distance: f32 = 0.0;\n"
@@ -151,18 +166,38 @@ void Coder::generateShaderCode() {
         "fn opSmoothSubtract(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
         "    let h = clamp(0.5 - 0.5 * (d2.distance + d1.distance) / k, 0.0, 1.0);\n"
         "    let blended_distance = mix(d1.distance, -d2.distance, h) + k * h * (1.0 - h);\n"
-        "    let blended_color = mix(d1.color, vec3<f32>(0.0, 0.0, 0.0), h); // Subtract color\n"
+        "    let blended_color = mix(d1.color, d1.color, h); // Subtract color\n"
         "    return DistanceColor(blended_distance, blended_color);\n"
         "}\n"
+        "fn opUnion(d1: DistanceColor, d2: DistanceColor) -> DistanceColor {\n"
+        "    if (d1.distance < d2.distance) {\n"
+        "        return d1;\n"
+        "    }\n"
+        "    return d2;\n"
+        "}\n"
+        "fn opSubtract(d1: DistanceColor, d2: DistanceColor) -> DistanceColor {\n"
+        "    let d = max(d1.distance, -d2.distance);\n"
+        "    return DistanceColor(d, d1.color);\n"
+        "}\n"
         "fn sdf_sphere(pos: vec3<f32>, center: vec3<f32>, radius: f32, color: vec3<f32>) -> DistanceColor {\n"
-        "    let distance = length(pos - center) - radius;\n"
+        "    var distance = length(pos - center) - radius;\n"
         "    return DistanceColor(distance, color); // Red color for sphere\n"
         "}\n"
         "fn sdf_box(pos: vec3<f32>, center: vec3<f32>, size: vec3<f32>, color: vec3<f32>) -> DistanceColor {\n"
         "    let d = abs(pos - center) - size;\n"
         "    let distance = length(max(d, vec3<f32>(0.0))) + min(max(d.x, max(d.y, d.z)), 0.0);\n"
         "    return DistanceColor(distance, color);\n"
-        "}\n";
+        "}\n"
+        "fn sdf_plane(pos: vec3<f32>) -> DistanceColor {\n"
+        "    let distance = abs(pos.y + 1.0);\n"
+        "    var color = vec3<f32>(0.0, 0.0, 0.5);\n"
+        "    let thickness = 0.01;\n"
+        "    if (abs(pos.x - round(pos.x)) < thickness || abs(pos.z - round(pos.z)) < thickness) {\n"
+        "        color = vec3<f32>(0.5, 0.5, 0.5); // Checkerboard color\n"
+        "    }\n"
+        "    return DistanceColor(distance, color);\n"
+        "}\n"
+        ;
         
 }
 

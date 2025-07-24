@@ -55,7 +55,7 @@ public:
 
 private:
 
-    Coder shaderCode;
+    Coder coder;
     
     Uniforms uniformsData;
    
