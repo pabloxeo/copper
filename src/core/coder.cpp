@@ -1,11 +1,65 @@
 #include <string>
 #include "./coder.h"
 
+
 void Coder::generateShaderCode() {
     shaderCode =
+        "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
+        "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
+
+    for (size_t i = 0; i < objects.size(); ++i) {
+        const auto& object = objects[i];
+        if(object.selected) {
+            if(object.type == "sphere") {
+                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, vec3<f32>(size, position[0], position[1], position[2]), size[0], vec3<f32>(color[0], color[1], color[2]));\n";
+            } else if(object.type == "box") {
+                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, vec3<f32>(size[0], size[1], size[2]), vec3<f32>(position[0], position[1], position[2]), vec3<f32>(color[0], color[1], color[2]));\n";
+            }
+        } else {
+            if(object.type == "sphere") {
+                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
+                    std::to_string(object.size[0]) + ", vec3<f32>(" + std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
+            } else if(object.type == "box") {
+                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
+                    std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
+                    std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
+            }
+        }
+
+        if (i == 0) {
+            shaderCode += "result = " + object.type + std::to_string(i) + ";\n";
+        } else if (object.operation == "smoothunion") {
+            shaderCode += "result = opSmoothUnion(result, " + object.type + std::to_string(i) + ", 0.6);";
+        } else if (object.operation == "intersection") {
+            shaderCode += "result = opSmoothIntersect(result, " + object.type + std::to_string(i) + ", 0.6);";
+        } else if (object.operation == "smoothsubtract") {
+            shaderCode += "result = opSmoothSubtract(result, " + object.type + std::to_string(i) + ", 0.6);";
+        }else if (object.operation == "union"){
+            shaderCode += "result = opUnion(result, " + object.type + std::to_string(i) + ");\n";
+        } else if (object.operation == "subtract") {
+            shaderCode += "result = opSubtract(result, " + object.type + std::to_string(i) + ");\n";
+        }
+    }
+
+    shaderCode +=
+        "    let floor = sdf_plane(pos);\n"
+        "    if(floor.distance < result.distance) {\n"
+        "        result = floor;\n"
+        "    }\n"
+        "    return result;\n"
+        "}\n";
+}
+
+Coder::Coder(Renderer* renderer){
+    this->renderer = renderer;
+    base =
         "struct Uniforms {\n"
         "    mvp_matrix: mat4x4<f32>,\n"
-        "    aspect_ratio: f32\n"
+        "    light_position: vec3<f32>,\n"
+        "    aspect_ratio: f32,\n"
+        //"    size : vec3<f32>,\n"
+        //"    color: vec3<f32>\n"
+        //"    position: vec3<f32>\n"
         "};\n"
         "@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n"
         "struct VertexOutput {\n"
@@ -16,7 +70,6 @@ void Coder::generateShaderCode() {
         "    distance: f32,\n"
         "    color: vec3<f32>\n"
         "};\n"
-        "const LIGHT_POSITION: vec3<f32> = vec3<f32>(5.0, 5.0, -3.0);\n"
         "const VIEW_POSITION: vec3<f32> = vec3(0.0, 0.0, -1.0);\n"
         "const FOV: f32 = 1.0;\n"
         "fn mat4_to_mat3(m: mat4x4<f32>) -> mat3x3<f32> {\n"
@@ -89,7 +142,7 @@ void Coder::generateShaderCode() {
         "   return (0.25 * (1.0 + res) * (1.0 + res) * (2.0 - res));\n"
         "}\n"
         "fn blinn_phong_lighting(pos: vec3<f32>, normal: vec3<f32>, view_dir: vec3<f32>, base_color: vec3<f32>) -> vec3<f32> {\n"
-        "    let light_dir = normalize(LIGHT_POSITION - pos);\n"
+        "    let light_dir = normalize(uniforms.light_position - pos);\n"
         "    let light_color = vec3<f32>(1.0, 1.0, 1.0);\n"
         "    let ambient = 0.2 * light_color;\n"
         "    let diff = max(dot(normal, light_dir), 0.0);\n"
@@ -99,42 +152,6 @@ void Coder::generateShaderCode() {
         "    let specular = spec * light_color;\n"
         "    let shadow = calculate_shadow(pos, light_dir);\n"
         "    return base_color * (ambient + (1.0 + shadow) * (diffuse + specular));\n"
-        "}\n"
-        "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
-        "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0));\n";
-
-    for (size_t i = 0; i < objects.size(); ++i) {
-        const auto& object = objects[i];
-        if(object.type == "sphere") {
-            shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
-                std::to_string(object.size[0]) + ", vec3<f32>(" + std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
-        } else if(object.type == "box") {
-            shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
-                std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
-                std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "));\n";
-        }
-
-        if (i == 0) {
-            shaderCode += "result = " + object.type + std::to_string(i) + ";\n";
-        } else if (object.operation == "smoothunion") {
-            shaderCode += "result = opSmoothUnion(result, " + object.type + std::to_string(i) + ", 0.5);";
-        } else if (object.operation == "intersection") {
-            shaderCode += "result = opSmoothIntersect(result, " + object.type + std::to_string(i) + ", 0.5);";
-        } else if (object.operation == "smoothsubtract") {
-            shaderCode += "result = opSmoothSubtract(result, " + object.type + std::to_string(i) + ", 0.5);";
-        }else if (object.operation == "union"){
-            shaderCode += "result = opUnion(result, " + object.type + std::to_string(i) + ");\n";
-        } else if (object.operation == "subtract") {
-            shaderCode += "result = opSubtract(result, " + object.type + std::to_string(i) + ");\n";
-        }
-    }
-
-    shaderCode +=
-        "    let floor = sdf_plane(pos);\n"
-        "    if(floor.distance < result.distance) {\n"
-        "        result = floor;\n"
-        "    }\n"
-        "    return result;\n"
         "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> vec4<f32> {\n"
         "   var total_distance: f32 = 0.0;\n"
@@ -154,7 +171,8 @@ void Coder::generateShaderCode() {
         "fn opSmoothUnion(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
         "    let h = clamp(0.5 + 0.5 * (d2.distance - d1.distance) / k, 0.0, 1.0);\n"
         "    let blended_distance = mix(d2.distance, d1.distance, h) - k * h * (1.0 - h);\n"
-        "    let blended_color = mix(d2.color, d1.color, h); // Blend colors\n"
+        "    let blend = smoothstep(0, 1, h);\n"
+        "    let blended_color = mix(d2.color, d1.color, blend); // Blend colors\n"
         "    return DistanceColor(blended_distance, blended_color);\n"
         "}\n"
         "fn opSmoothIntersect(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
@@ -166,8 +184,7 @@ void Coder::generateShaderCode() {
         "fn opSmoothSubtract(d1: DistanceColor, d2: DistanceColor, k: f32) -> DistanceColor {\n"
         "    let h = clamp(0.5 - 0.5 * (d2.distance + d1.distance) / k, 0.0, 1.0);\n"
         "    let blended_distance = mix(d1.distance, -d2.distance, h) + k * h * (1.0 - h);\n"
-        "    let blended_color = mix(d1.color, d1.color, h); // Subtract color\n"
-        "    return DistanceColor(blended_distance, blended_color);\n"
+        "    return DistanceColor(blended_distance, d1.color);\n"
         "}\n"
         "fn opUnion(d1: DistanceColor, d2: DistanceColor) -> DistanceColor {\n"
         "    if (d1.distance < d2.distance) {\n"
@@ -190,10 +207,10 @@ void Coder::generateShaderCode() {
         "}\n"
         "fn sdf_plane(pos: vec3<f32>) -> DistanceColor {\n"
         "    let distance = abs(pos.y + 1.0);\n"
-        "    var color = vec3<f32>(0.0, 0.0, 0.5);\n"
+        "    var color = vec3<f32>(0.1, 0.1, 0.1);\n"
         "    let thickness = 0.01;\n"
         "    if (abs(pos.x - round(pos.x)) < thickness || abs(pos.z - round(pos.z)) < thickness) {\n"
-        "        color = vec3<f32>(0.5, 0.5, 0.5); // Checkerboard color\n"
+        "        color = vec3<f32>(0.2, 0.2, 0.2); // Checkerboard color\n"
         "    }\n"
         "    return DistanceColor(distance, color);\n"
         "}\n"
@@ -206,20 +223,16 @@ void Coder::addSphere(float x, float y, float z, float size, float r, float g, f
     std::vector<float> vsize ;
     vsize.push_back(size);
     objects.push_back({x, y, z, r, g, b, vsize, type, operation});
-    generateShaderCode();
+    renderer->pipelineDirty = true;
 }
 
 void Coder::addBox(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation) {
     std::string type = "box";
     objects.push_back({x, y, z, r, g, b, size, type, operation});
-    generateShaderCode();
+    renderer->pipelineDirty = true;
 }
 
 void Coder::clearObjects() {
     objects.clear();
-    generateShaderCode();
-}
-
-Coder::Coder() {
-    generateShaderCode();
+    renderer->pipelineDirty = true;
 }

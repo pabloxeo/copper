@@ -18,8 +18,12 @@ using namespace wgpu;
 
 struct Uniforms {
     glm::mat4 mvp_matrix; // Model-View-Projection matrix
+    glm::vec3 light_position; // Position of the light source
     float aspect_ratio;
-    glm::vec3 padding; // Padding to ensure 16-byte alignment
+    //glm::vec3 size; // Size of the object
+    //glm::vec3 color; // Color of the object
+    //glm::vec3 position; // Position of the object in world space
+    glm::vec3 _padding; // Padding to align the struct size to 16 bytes
 };
 
 
@@ -35,15 +39,16 @@ public:
 
     void CreateRenderPipeline();
 
-    void CreateAxisPipeline();
-
     void Render();
-
-    void UpdateWindow();
 
     void Release();
 
     void OnResize();
+
+    void setLightPosition(float x, float y, float z) {
+        uniformsData.light_position = glm::vec3(x, y, z);
+        pipelineDirty = true;
+    }
 
     bool pipelineDirty = false;
 
@@ -55,7 +60,7 @@ public:
 
 private:
 
-    Coder coder;
+    Coder* coder;
     
     Uniforms uniformsData;
    

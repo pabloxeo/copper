@@ -38,6 +38,7 @@ bool Renderer::Init(Window *nwindow) {
         adapter = a;
         GetDevice([this](Device d) {
             device = d;
+            coder = new Coder(this);
             InitGraphics();
         }, adapter, instance, device);
     }, adapter, instance);
@@ -55,6 +56,7 @@ void Renderer::InitGraphics() {
     // Create aspect ratio buffer
     uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = glm::mat4(1.0f);
+    uniformsData.light_position = glm::vec3(0.0f, 5.0f, 0.0f); // Default light position
     BufferDescriptor bufferDesc{};
     bufferDesc.size = sizeof(Uniforms);
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -87,7 +89,7 @@ void Renderer::InitGraphics() {
 
     CreateRenderPipeline();
     gui.initGui(*window, device, format);
-    gui.setCoderAndRenderer(&coder, this);
+    gui.setCoderAndRenderer(coder, this);
 
 } 
 
@@ -108,13 +110,25 @@ void Renderer::ConfigureSurface() {
 
 void Renderer::CreateRenderPipeline() {
     ShaderModuleWGSLDescriptor wgslDesc{};
-    std::string shaderSource = coder.getShaderCode(); // or from file
+    coder->generateShaderCode();
+    std::string shaderSource = coder->getShaderCode(); // or from file
     wgslDesc.code = shaderSource.c_str();
 
     ShaderModuleDescriptor shaderModuleDescriptor{ .nextInChain = &wgslDesc };
     ShaderModule shaderModule = device.CreateShaderModule(&shaderModuleDescriptor);
 
     ColorTargetState colorTargetState{.format = format};
+
+    BlendState blendState{};
+    blendState.color.srcFactor = wgpu::BlendFactor::SrcAlpha;
+    blendState.color.dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha;
+    blendState.color.operation = wgpu::BlendOperation::Add;
+    blendState.alpha.srcFactor = wgpu::BlendFactor::One;
+    blendState.alpha.dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha;
+    blendState.alpha.operation = wgpu::BlendOperation::Add;
+
+    colorTargetState.blend = &blendState;
+    colorTargetState.writeMask = wgpu::ColorWriteMask::All;
 
     FragmentState fragmentState{};
     fragmentState.module = shaderModule;
@@ -164,13 +178,6 @@ void Renderer::Render() {
 
     this->cameraController->update_camera(this->window->getWindow());
 
-    // Always update aspect ratio buffer before rendering
-    // float aspect = float(window->getWindowWidth()) / float(window->getWindowHeight());
-    // Uniforms uniformsData;
-    // uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
-    // uniformsData.mvp_matrix = this->camera->get_view_matrix();
-    // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
-
     if (pipelineDirty) {
         ConfigureSurface(); 
         CreateRenderPipeline();
@@ -191,24 +198,10 @@ void Renderer::Render() {
     
     
     // device.GetQueue().WriteBuffer(uniformsBuffer, 0, &aspect, sizeof(float));
-    
-    Uniforms uniformsData;
+
     uniformsData.mvp_matrix = this->camera->get_view_matrix();
     uniformsData.aspect_ratio = float(actualWidth) / float(actualHeight);
 
-    // "   let cam = transpose(uniforms.mvp_matrix);\n"
-    // "   let right = cam[0].xyz;\n"
-    // "   let up = cam[1].xyz;\n"
-    // "   let forward = cam[2].xyz;\n"
-    // "   let eye = cam[3].x * right + cam[3].y * up + cam[3].z * forward;\n"
-
-    auto cam = glm::transpose(uniformsData.mvp_matrix);
-    auto right = cam[0];
-    auto up = cam[1];
-    auto forward = cam[2];
-    auto eye = cam[0].w * right + cam[1].w * up + cam[2].w * forward;
-    //std::cout << "Camera Eye Position: " << eye.x << ", " << eye.y << ", " << eye.z << std::endl;
-    //std::cout << "cam[0].w: " << cam[0].w << ", cam[1].w: " << cam[1].w << ", cam[2].w: " << cam[2].w << std::endl;
 
     device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
@@ -260,12 +253,6 @@ void Renderer::Render() {
 
 }
 
-void Renderer::UpdateWindow() {
-    //float windowSizeData[2] = { window->getWindowWidth(), window->getWindowHeight() };
-    // Update any buffers or resources that depend on the window size
-    //queue.WriteBuffer(uWindowSizeBuffer, 0, windowSizeData, sizeof(windowSizeData));
-}
-
 void Renderer::Release(){
     window = nullptr;
     gui.terminateGui();
@@ -308,6 +295,4 @@ void Renderer::OnResize() {
     // Then create a new one
     depthStencilTexture = device.CreateTexture(&depthDesc);
     
-    // Log the resize operation
-    //std::cout << "Window resized to " << width << "x" << height << std::endl;
 }

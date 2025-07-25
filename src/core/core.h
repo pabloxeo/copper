@@ -29,27 +29,6 @@ private:
     Window window;
     Renderer renderer;
     float time = 0.0f;
-/*
-    static void KeyCallback(GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action, [[maybe_unused]] int mods) {
-        Core* core = static_cast<Core*>(glfwGetWindowUserPointer(window));
-        if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-            switch (key) {
-                case GLFW_KEY_UP:
-                    core->lightPos[2] += 0.1f; // Move light up
-                    break;
-                case GLFW_KEY_DOWN:
-                    core->lightPos[2] -= 0.1f; // Move light down
-                    break;
-                case GLFW_KEY_LEFT:
-                    core->lightPos[0] -= 0.1f; // Move light left
-                    break;
-                case GLFW_KEY_RIGHT:
-                    core->lightPos[0] += 0.1f; // Move light right
-                    break;
-            }
-        }
-    }
-*/
 };
 
 

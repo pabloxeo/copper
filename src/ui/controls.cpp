@@ -38,6 +38,16 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
     ImGui::Begin("Objects");
 
     if (coder) {
+
+
+                // === Light Controls ===
+        static float lightPos[3] = {0.0f, 5.0f, 0.0f}; // Initial light position
+        if (ImGui::SliderFloat3("Light Position", lightPos, -20.0f, 20.0f)) {
+            if (renderer) renderer->setLightPosition(lightPos[0], lightPos[1], lightPos[2]);
+        }
+
+        ImGui::Separator(); // Visual separation from object controls
+
         // Add new object
         static int objectTypeIndex = 0; // 0 = sphere, 1 = box
         const char* objectTypes[] = {"Sphere", "Box"};
@@ -71,7 +81,7 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
             } else if (operationIndex == 1) {
                 operation = "intersection";
             } else if (operationIndex == 2) {
-                operation = "smothsubtract";
+                operation = "smoothsubtract";
             }else if (operationIndex == 3) {
                 operation = "union";
             } else if (operationIndex == 4) {
@@ -146,14 +156,12 @@ void Controls::updateGui(wgpu::RenderPassEncoder renderPass) {
             // Remove object button
             if (ImGui::Button("Remove")) {
                 objects.erase(objects.begin() + i);
-                coder->generateShaderCode();
                 if (renderer) renderer->pipelineDirty = true;
                 ImGui::PopID();
                 break;
             }
 
             if (changed) {
-                coder->generateShaderCode();
                 if (renderer) renderer->pipelineDirty = true;
             }
 
@@ -178,7 +186,6 @@ void Controls::setCoderAndRenderer(Coder* c, Renderer* r) {
     coder = c;
     renderer = r;
 
-    coder->addBox(0, 0, 0, {1.0f, 1.0f, 1.0f}, 1.0f, 1.0f, 1.0f, "union");
-    coder->generateShaderCode();
+    coder->addBox(0, 0, 0, {1.0f, 1.0f, 1.0f}, 1.0f, 1.0f, 1.0f, "union");// Add a default box for testing
     renderer->pipelineDirty = true;
 }

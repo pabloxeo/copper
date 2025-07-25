@@ -13,8 +13,6 @@ bool Core::Initialize() {
 
     if(!renderer.Init(&window)) return false;
     
-    //renderer.UpdateWindow();
-
     return true;
 }
 
