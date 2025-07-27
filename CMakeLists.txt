@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 # Add package Dawn
 set(DAWN_FETCH_DEPENDENCIES ON)
-add_subdirectory("dawn" EXCLUDE_FROM_ALL)
+add_subdirectory("lib/dawn" EXCLUDE_FROM_ALL)
 
 file(GLOB SRCS
         ${PROJECT_SOURCE_DIR}/src/**/**.cpp
@@ -17,21 +17,21 @@ add_executable(copper src/main.cpp ${SRCS})
 
 # Add ImGui source files
 target_sources(copper PRIVATE
-    imgui/imgui.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_widgets.cpp
-    imgui/misc/cpp/imgui_stdlib.cpp
-    imgui/backends/imgui_impl_glfw.cpp
-    imgui/backends/imgui_impl_wgpu.cpp
+    lib/imgui/imgui.cpp
+    lib/imgui/imgui_draw.cpp
+    lib/imgui/imgui_tables.cpp
+    lib/imgui/imgui_widgets.cpp
+    lib/imgui/misc/cpp/imgui_stdlib.cpp
+    lib/imgui/backends/imgui_impl_glfw.cpp
+    lib/imgui/backends/imgui_impl_wgpu.cpp
 )
 
 # Add ImGui include directories
 target_include_directories(copper PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/src
     ${PROJECT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/imgui
-    ${CMAKE_SOURCE_DIR}/imgui/misc/cpp
+    ${CMAKE_SOURCE_DIR}/lib/imgui
+    ${CMAKE_SOURCE_DIR}/lib/imgui/misc/cpp
 )
 
 # add_subdirectory(lib/glfw EXCLUDE_FROM_ALL)
