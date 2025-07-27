@@ -1,14 +1,11 @@
 [submodule "imgui"]
-	path = imgui
+	path = lib/imgui
 	url = https://github.com/ocornut/imgui.git
 [submodule "dawn"]
-	path = dawn
+	path = lib/dawn
 	url = https://dawn.googlesource.com/dawn
 	branch = chromium/7204
 	shallow = true
-[submodule "lib/glfw"]
-	path = lib/glfw
-	url = https://github.com/glfw/glfw.git
-[submodule "lib/glm"]
+[submodule "glm"]
 	path = lib/glm
 	url = https://github.com/g-truc/glm.git
