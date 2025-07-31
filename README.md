@@ -6,7 +6,7 @@
 
 - Renderizado en tiempo real con WebGPU (vía Dawn)
 - Modelado basado en SDFs (funciones de distancia)
-- Operaciones de combinación: unión, intersección, resta y suavizado
+- Operaciones de combinación: unión, intersección y resta.
 - Interfaz gráfica con ImGui
 - Gestión de ventana usando GLFW
 - Shaders escritos en WGSL
