@@ -1,6 +1,6 @@
 # Copper
 
-**Copper** es un programa de diseño 3D escrito en C++ que utiliza [Dawn](https://dawn.googlesource.com/dawn/) (una implementación de WebGPU) como backend de renderizado. Este proyecto explora técnicas de ray marching con **SDFs (Signed Distance Functions)** para construir y visualizar geometría en tiempo real, permitiendo operaciones booleanas suaves, sombras suaves y anti-aliasing avanzado.
+**Copper** es un programa de diseño 3D escrito en C++ que utiliza [Dawn](https://dawn.googlesource.com/dawn/) (una implementación de WebGPU) como backend de renderizado. Este proyecto explora técnicas de ray marching con **SDFs (Signed Distance Functions)** para construir y visualizar geometría en tiempo real.
 
 ## ✨ Características
 
