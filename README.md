@@ -29,12 +29,4 @@
 Para compilar Dawn desde el código fuente, necesitarás instalar los siguientes paquetes:
 
 ```bash
-sudo apt-get install \
-    libxrandr-dev \
-    libxinerama-dev \
-    libxcursor-dev \
-    mesa-common-dev \
-    libx11-xcb-dev \
-    pkg-config \
-    nodejs \
-    npm
+sudo apt-get install libxrandr-dev libxinerama-dev libxcursor-dev mesa-common-dev libx11-xcb-dev pkg-config nodejs npm
