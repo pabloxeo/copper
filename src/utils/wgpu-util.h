@@ -1,4 +1,7 @@
-#include <webgpu/webgpu_cpp.h>
+#ifndef WGPU_UTIL_H
+#define WGPU_UTIL_H
+\
+#include <dawn/webgpu_cpp.h>
 #include <iostream>
 #include <functional>
 
@@ -47,3 +50,5 @@ void GetDevice(const std::function<void(wgpu::Device)>& callback, wgpu::Adapter 
         }, userdata), UINT64_MAX);
         callback(device);  
 }
+
+#endif
