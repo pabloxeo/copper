@@ -46,7 +46,7 @@ void Window::FramebufferSizeCallback(GLFWwindow* window,__attribute_maybe_unused
 void Window::MouseButtonCallback(GLFWwindow *window, int button, int action,__attribute_maybe_unused__ int mods) {
     // Get the renderer pointer and call OnMouseButton
     auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-    if (renderer != nullptr && !ImGui::GetIO().WantCaptureMouse) {
+    if (renderer != nullptr && !ImGui::GetIO().WantCaptureMouse && action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT) {
         renderer->OnMouseButton(button, action);
     }
 }

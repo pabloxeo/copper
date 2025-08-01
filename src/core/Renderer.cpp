@@ -208,7 +208,7 @@ void Renderer::Render() {
     uniformsData.mouse_position = glm::vec2((float)normalizedX, (float)normalizedY);
     uniformsData.picked_id = coder->getSelectedObjectId();
     uniformsData.floor = this->floor ? 1 : 0;
-    std::cout << "Floor: " << (uniformsData.floor ? "Enabled" : "Disabled") << std::endl;
+    //std::cout << "Floor: " << (uniformsData.floor ? "Enabled" : "Disabled") << std::endl;
     //std::cout << "Mouse Position: " << uniformsData.mouse_position.x << ", " << uniformsData.mouse_position.y << std::endl;
     
 
@@ -321,9 +321,16 @@ void Renderer::updateSelectedId(){
     };
     CommandEncoder pickingEncoder = device.CreateCommandEncoder();
     RenderPassEncoder pickingPass = pickingEncoder.BeginRenderPass(&pickingRenderpass);
+    
+    uint32_t actualWidth = pickingTexture.GetWidth();
+    uint32_t actualHeight = pickingTexture.GetHeight();
 
-    pickingPass.SetViewport(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f);
-    pickingPass.SetScissorRect(0, 0, 1, 1);
+    uint32_t scissorWidth = std::min(actualWidth, actualWidth);
+    uint32_t scissorHeight = std::min(actualHeight, actualHeight);
+
+
+    pickingPass.SetViewport(0, 0, float(scissorWidth), float(scissorHeight), 0.0f, 1.0f);
+    pickingPass.SetScissorRect(0, 0, scissorWidth, scissorHeight);
 
     pickingPass.SetPipeline(pickingPipeline);
     pickingPass.SetBindGroup(0, aspectRatioBindGroup); // Add this line
