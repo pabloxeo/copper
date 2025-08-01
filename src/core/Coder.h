@@ -77,6 +77,12 @@ class Coder {
         }
     }
 
+    void addTest(){
+        for(int i = 0; i < 100; ++i) {
+            addSphere(i * 2.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, "union");
+        }
+    }
+
 };
 
 #endif // CODER_H

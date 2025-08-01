@@ -42,9 +42,11 @@ void Coder::generateShaderCode() {
     }
 
     shaderCode +=
-        "    let floor = sdf_plane(pos);\n"
-        "    if(floor.distance < result.distance) {\n"
-        "        result = floor;\n"
+        "    if (uniforms.floor == 1) {\n"
+        "       let floor = sdf_plane(pos);\n"
+        "       if(floor.distance < result.distance) {\n"
+        "           result = floor;\n"
+        "       }\n"
         "    }\n"
         "    return result;\n"
         "}\n";
@@ -62,6 +64,7 @@ Coder::Coder(Renderer* renderer){
         "    position: vec3<f32>,\n"
         "    mouse_position: vec2<f32>,\n"
         "    id: i32,\n"
+        "    floor: i32,\n"
         "};\n"
         "@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n"
         "struct VertexOutput {\n"
@@ -96,9 +99,9 @@ Coder::Coder(Renderer* renderer){
         "    output.clip_pos = vec4<f32>(p, 0.0, 1.0);\n"
         "    return output;\n"
         "}\n"
-        "const MAX_MARCHING_STEPS: i32 = 10000;\n"
+        "const MAX_MARCHING_STEPS: i32 = 1000;\n"
         "const MIN_DISTANCE: f32 = 0.001;\n"
-        "const MAX_DISTANCE: f32 = 100.0;\n"
+        "const MAX_DISTANCE: f32 = 50.0;\n"
         "@fragment\n"
         "fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {\n"
         "    let cam = transpose(uniforms.mvp_matrix);\n"
@@ -162,7 +165,10 @@ Coder::Coder(Renderer* renderer){
         "           let normal = calculate_normal(pos);\n"
         "           let view_dir = normalize(ro - pos);\n"
         "           let lit_color = blinn_phong_lighting(pos, normal, view_dir, dc.color);\n"
-        //not really working aa
+        "           if (dc.id == uniforms.id) {\n"
+        "               let color = mix(lit_color, vec3<f32>(0.0, 1.0, 0.0), 0.1);\n"
+        "               return DistanceColor(dc.distance, color, dc.id);\n"
+        "           }\n"
         "           return DistanceColor(dc.distance, lit_color, dc.id);\n"
         "       }\n"
         "       total_distance += dc.distance;\n"
@@ -245,7 +251,7 @@ Coder::Coder(Renderer* renderer){
         "    return dc.id;\n"
         "}\n"
         ;
-        
+
 }
 
 void Coder::addSphere(float x, float y, float z, float size, float r, float g, float b, const std::string& operation) {

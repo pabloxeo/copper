@@ -29,8 +29,8 @@ struct Uniforms {
     glm::vec3 position; // Position of the object in world space
     float padding3; // Padding to align the struct size to 16 bytes
     glm::vec2 mouse_position; // Position of the mouse in world space
-    glm::vec2 padding4; // Padding to align the struct size to 16 bytes
     int picked_id;
+    int floor; // Whether to include the floor in the scene
 };
 
 
@@ -46,14 +46,15 @@ public:
 
     void setLightPosition(float x, float y, float z) {
         uniformsData.light_position = glm::vec3(x, y, z);
-        pipelineDirty = true;
     }
 
-    void OnMouseButton(int button, int action, int mods);
+    void OnMouseButton(int button, int action);
 
     void updateSelectedId();
 
     bool pipelineDirty = false;
+
+    bool floor = true;
 
     Window *window;
 

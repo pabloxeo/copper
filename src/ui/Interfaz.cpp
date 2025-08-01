@@ -39,23 +39,19 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
         if (id >= 0) {
             // Get reference instead of copy
             Object& selectedObject = coder->getSelectedObject(id);
-            bool changed = false;
 
             // Modify the object directly
-            changed |= ImGui::SliderFloat("X", &selectedObject.x, -10.0f, 10.0f);
-            changed |= ImGui::SliderFloat("Y", &selectedObject.y, -10.0f, 10.0f);
-            changed |= ImGui::SliderFloat("Z", &selectedObject.z, -10.0f, 10.0f);
-            changed |= ImGui::ColorEdit3("Color", &selectedObject.r);
+            ImGui::SliderFloat("X", &selectedObject.x, -10.0f, 10.0f);
+            ImGui::SliderFloat("Y", &selectedObject.y, -10.0f, 10.0f);
+            ImGui::SliderFloat("Z", &selectedObject.z, -10.0f, 10.0f);
+            ImGui::ColorEdit3("Color", &selectedObject.r);
             
             if (selectedObject.type == "sphere") {
-                changed |= ImGui::SliderFloat("Radius", &selectedObject.size[0], 0.1f, 5.0f);
+                ImGui::SliderFloat("Radius", &selectedObject.size[0], 0.1f, 5.0f);
             } else if (selectedObject.type == "box") {
-                changed |= ImGui::DragFloat3("Size (XYZ)", selectedObject.size.data());
+                ImGui::DragFloat3("Size (XYZ)", selectedObject.size.data());
             }
 
-            if (changed && renderer) {
-                renderer->pipelineDirty = true;
-            }
 
             if (ImGui::Button("Delete Object")) {
                 coder->deleteObject(id);
@@ -75,6 +71,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
         }
 
         ImGui::Separator(); // Visual separation from object Interfaz
+
+        if(ImGui::Checkbox("Show Floor", &renderer->floor)) {
+            renderer->pipelineDirty = true; // Mark pipeline as dirty to update the floor rendering
+        }
+
+        ImGui::Separator();
 
         // Add new object
         static int objectTypeIndex = 0; // 0 = sphere, 1 = box
@@ -203,4 +205,5 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 void Interfaz::setCoderAndRenderer(Coder* c, Renderer* r) {
     coder = c;
     renderer = r;
+    //coder->addTest(); // Add test objects for demonstration
 }

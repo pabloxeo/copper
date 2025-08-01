@@ -46,6 +46,7 @@ void Renderer::InitGraphics() {
     uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = glm::mat4(1.0f);
     uniformsData.light_position = glm::vec3(0.0f, 5.0f, 0.0f); // Default light position
+    uniformsData.floor = 1;
     BufferDescriptor bufferDesc{};
     bufferDesc.size = sizeof(Uniforms);
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -179,7 +180,7 @@ void Renderer::Render() {
     if (pipelineDirty) {
         ConfigureSurface(); 
         CreateRenderPipeline();
-        CreatePickingPipeline();
+        //CreatePickingPipeline();
         pipelineDirty = false;
     }
     // Check if surface is valid before proceeding
@@ -205,7 +206,9 @@ void Renderer::Render() {
     float normalizedX = static_cast<float>(mouseX) / actualWidth;
     float normalizedY = static_cast<float>(mouseY) / actualHeight;
     uniformsData.mouse_position = glm::vec2((float)normalizedX, (float)normalizedY);
-
+    uniformsData.picked_id = coder->getSelectedObjectId();
+    uniformsData.floor = this->floor ? 1 : 0;
+    std::cout << "Floor: " << (uniformsData.floor ? "Enabled" : "Disabled") << std::endl;
     //std::cout << "Mouse Position: " << uniformsData.mouse_position.x << ", " << uniformsData.mouse_position.y << std::endl;
     
 
@@ -374,7 +377,11 @@ void Renderer::updateSelectedId(){
                 if(data->coder && value > 0) {
                     data->coder->setSelectedObjectId(value);
                     data->renderer->pipelineDirty = true;
+                }else if(data->coder) {
+                    data->coder->setSelectedObjectId(-1);
+                    data->renderer->pipelineDirty = true;
                 }
+
                 //std::cout << "Selected Object ID: " << value << std::endl;
                 data->buffer.Unmap();
             } else {
@@ -446,7 +453,7 @@ void Renderer::CreatePickingPipeline(){
 
 }
 
-void Renderer::OnMouseButton(int button, int action, int mods) {
+void Renderer::OnMouseButton(int button, int action) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         CreatePickingPipeline();
         updateSelectedId();
