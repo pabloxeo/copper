@@ -177,6 +177,7 @@ void Renderer::Render() {
     this->cameraController->update_camera(this->window->getWindow());
 
     if (pipelineDirty) {
+        printf("Pipeline dirty, recreating...\n");
         ConfigureSurface(); 
         CreateRenderPipeline();
         //CreatePickingPipeline();
@@ -377,10 +378,10 @@ void Renderer::updateSelectedId(){
             if (status == WGPUMapAsyncStatus_Success) {
                 const int8_t* mapped = reinterpret_cast<const int8_t*>(data->buffer.GetConstMappedRange());
                 int value = *reinterpret_cast<const int*>(mapped);
-                if(data->coder && value > 0) {
+                if(data->coder && value > 0 && data->coder->getSelectedObjectId() != value) {
                     data->coder->setSelectedObjectId(value);
                     data->renderer->pipelineDirty = true;
-                }else if(data->coder) {
+                }else if(data->coder && data->coder->getSelectedObjectId() != -1) {
                     data->coder->setSelectedObjectId(-1);
                     data->renderer->pipelineDirty = true;
                 }

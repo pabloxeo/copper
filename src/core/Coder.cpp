@@ -35,20 +35,22 @@ void Coder::generateShaderCode() {
 
         shaderCode += objCode;
         sdfPickingCode += objCode;
+        
+        if(objects.size() == 1)
+            objects[0].operation = "union"; // Default operation for single object
 
-        // --- Render SDF: apply CSG operations ---
         if (i == 0) {
-            shaderCode += "result = " + varName + ";\n";
+            shaderCode += "    result = " + varName + ";\n";
         } else if (object.operation == "smoothunion") {
-            shaderCode += "result = opSmoothUnion(result, " + varName + ", 0.6);\n";
+            shaderCode += "    result = opSmoothUnion(result, " + varName + ", 0.6);\n";
         } else if (object.operation == "intersection") {
-            shaderCode += "result = opSmoothIntersect(result, " + varName + ", 0.6);\n";
+            shaderCode += "    result = opSmoothIntersect(result, " + varName + ", 0.6);\n";
         } else if (object.operation == "smoothsubtract" ) {
-            shaderCode += "result = opSmoothSubtract(result, " + varName + ", 0.6);\n";
+            shaderCode += "    result = opSmoothSubtract(result, " + varName + ", 0.6);\n";
         } else if (object.operation == "union") {
-            shaderCode += "result = opUnion(result, " + varName + ");\n";
+            shaderCode += "    result = opUnion(result, " + varName + ");\n";
         } else if (object.operation == "subtract") {
-            shaderCode += "result = opSubtract(result, " + varName + ");\n";
+            shaderCode += "    result = opSubtract(result, " + varName + ");\n";
         }
 
         // --- Picking SDF: only keep closest object ---
@@ -67,6 +69,7 @@ void Coder::generateShaderCode() {
             "    }\n";
     }
 
+    // Close main sdf function
     shaderCode +=
         "    return result;\n"
         "}\n";
@@ -76,7 +79,31 @@ void Coder::generateShaderCode() {
         "    return result;\n"
         "}\n";
 
-    shaderCode += sdfPickingCode;  // Append picking version to final shader
+    // Add picking function to shader
+    shaderCode += sdfPickingCode;
+
+    // Add gizmo functions if object is selected
+    if (selectedObjectId != -1) {
+        std::string gizmoCode = getGizmoShaderCode();
+        shaderCode += gizmoCode;
+        
+        // Modified main SDF that combines objects and gizmos
+        shaderCode +=
+            "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
+            "    let object_result = sdf(pos);\n"  // Fixed: was calling sdf_combined recursively
+            "    let gizmo_result = sdf_gizmos(pos);\n"
+            "    if (gizmo_result.distance < object_result.distance) {\n"
+            "        return gizmo_result;\n"
+            "    }\n"
+            "    return object_result;\n"
+            "}\n";
+    } else {
+        // No gizmos, just alias sdf_combined to sdf
+        shaderCode +=
+            "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
+            "    return sdf(pos);\n"
+            "}\n";
+    }
 }
 
 
@@ -128,7 +155,7 @@ Coder::Coder(Renderer* renderer){
         "}\n"
         "const MAX_MARCHING_STEPS: i32 = 1000;\n"
         "const MIN_DISTANCE: f32 = 0.01;\n"
-        "const MAX_DISTANCE: f32 = 20.0;\n"
+        "const MAX_DISTANCE: f32 = 100.0;\n"
         "@fragment\n"
         "fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {\n"
         "    let cam = transpose(uniforms.mvp_matrix);\n"
@@ -149,9 +176,9 @@ Coder::Coder(Renderer* renderer){
         "    let dx = vec3<f32>(eps, 0.0, 0.0);\n"
         "    let dy = vec3<f32>(0.0, eps, 0.0);\n"
         "    let dz = vec3<f32>(0.0, 0.0, eps);\n"
-        "    let nx = sdf(p + dx).distance - sdf(p - dx).distance;\n"
-        "    let ny = sdf(p + dy).distance - sdf(p - dy).distance;\n"
-        "    let nz = sdf(p + dz).distance - sdf(p - dz).distance;\n"
+        "    let nx = sdf_combined(p + dx).distance - sdf_combined(p - dx).distance;\n"
+        "    let ny = sdf_combined(p + dy).distance - sdf_combined(p - dy).distance;\n"
+        "    let nz = sdf_combined(p + dz).distance - sdf_combined(p - dz).distance;\n"
         "    return normalize(vec3<f32>(nx, ny, nz));\n"
         "}\n"
         "fn calculate_shadow(ro: vec3<f32>, rd: vec3<f32>) -> f32 {\n"
@@ -189,7 +216,7 @@ Coder::Coder(Renderer* renderer){
         "   var selected_found: bool = false;\n"
         "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && total_distance < MAX_DISTANCE; i++) {\n"
         "       let pos = ro + rd * total_distance;\n"
-        "       let dc = sdf(pos);\n"
+        "       let dc = sdf_combined(pos);\n"
         "       if (dc.distance < MIN_DISTANCE){\n"
         "           let normal = calculate_normal(pos);\n"
         "           let view_dir = normalize(ro - pos);\n"
@@ -211,7 +238,7 @@ Coder::Coder(Renderer* renderer){
         "       }\n"
         "       total_distance += dc.distance;\n"
         "   }\n"
-        "   if (selected_found ){\n"
+        "   if (selected_found){\n"
         "       return DistanceColor(selected_hit.distance, mix(vec3<f32>(0.0, 0.0, 0.0), selected_hit.color, 0.3), selected_hit.id);\n"
         "   }\n"
         "   return DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n"
@@ -309,9 +336,7 @@ Coder::Coder(Renderer* renderer){
 
 void Coder::addSphere(float x, float y, float z, float size, float r, float g, float b, const std::string& operation) {
     std::string type = "sphere";
-    std::vector<float> vsize ;
-    vsize.push_back(size);
-    objects.push_back({objectIdCounter, x, y, z, r, g, b, vsize, type, operation});
+    objects.push_back({objectIdCounter, x, y, z, r, g, b, std::vector<float>{size}, type, operation});
     objectIdCounter++;
     renderer->pipelineDirty = true;
 }
@@ -326,4 +351,106 @@ void Coder::addBox(float x, float y, float z, std::vector<float> size, float r, 
 void Coder::clearObjects() {
     objects.clear();
     renderer->pipelineDirty = true;
+}
+
+std::string Coder::getGizmoShaderCode() {
+    if (selectedObjectId == -1) return "";
+    
+    // Find selected object
+    Object* selectedObj = nullptr;
+    for (auto& obj : objects) {
+        if (obj.id == selectedObjectId) {
+            selectedObj = &obj;
+            break;
+        }
+    }
+    
+    if (!selectedObj) return "";
+    
+    return 
+        "fn sdf_gizmo_arrow(pos: vec3<f32>, center: vec3<f32>, direction: vec3<f32>, color: vec3<f32>) -> DistanceColor {\n"
+        "    let shaft_length = 0.8;\n"
+        "    let shaft_radius = 0.02;\n"
+        "    let head_length = 0.2;\n"
+        "    let head_radius = 0.06;\n"
+        "    \n"
+        "    let local_pos = pos - center;\n"
+        "    let axis_dist = dot(local_pos, direction);\n"
+        "    let radial_pos = local_pos - axis_dist * direction;\n"
+        "    let radial_dist = length(radial_pos);\n"
+        "    \n"
+        "    var dist: f32;\n"
+        "    if (axis_dist < 0.0) {\n"
+        "        dist = length(local_pos);\n"
+        "    } else if (axis_dist < shaft_length) {\n"
+        "        dist = radial_dist - shaft_radius;\n"
+        "    } else if (axis_dist < shaft_length + head_length) {\n"
+        "        let head_progress = (axis_dist - shaft_length) / head_length;\n"
+        "        let head_r = head_radius * (1.0 - head_progress);\n"
+        "        dist = radial_dist - head_r;\n"
+        "    } else {\n"
+        "        let tip_pos = local_pos - direction * (shaft_length + head_length);\n"
+        "        dist = length(tip_pos);\n"
+        "    }\n"
+        "    \n"
+        "    return DistanceColor(dist, color, -1000);\n"
+        "}\n"
+        "\n"
+        "fn sdf_gizmo_plane(pos: vec3<f32>, center: vec3<f32>, normal1: vec3<f32>, normal2: vec3<f32>, color: vec3<f32>) -> DistanceColor {\n"
+        "    let size = 0.2;\n"
+        "    let thickness = 0.01;\n"
+        "    \n"
+        "    let local_pos = pos - center;\n"
+        "    let u = dot(local_pos, normal1);\n"
+        "    let v = dot(local_pos, normal2);\n"
+        "    let w = dot(local_pos, cross(normal1, normal2));\n"
+        "    \n"
+        "    let plane_dist = abs(w) - thickness;\n"
+        "    let bound_dist = max(abs(u) - size, abs(v) - size);\n"
+        "    \n"
+        "    var dist: f32;\n"
+        "    if (u > 0.0 && v > 0.0 && u < size && v < size) {\n"
+        "        dist = plane_dist;\n"
+        "    } else {\n"
+        "        dist = max(plane_dist, bound_dist);\n"
+        "    }\n"
+        "    \n"
+        "    return DistanceColor(dist, color, -1001);\n"
+        "}\n"
+        "\n"
+        "fn sdf_gizmos(pos: vec3<f32>) -> DistanceColor {\n"
+        "    let gizmo_center = vec3<f32>(" + 
+            std::to_string(selectedObj->x) + ", " + 
+            std::to_string(selectedObj->y) + ", " + 
+            std::to_string(selectedObj->z) + ");\n"
+        "    let offset = -0.50;\n"  // Small offset distance
+        "    \n"
+        "    var result = DistanceColor(1e6, vec3<f32>(0.0), -1);\n"
+        "    \n"
+        "    // X Arrow (Red)\n"
+        "    let x_arrow = sdf_gizmo_arrow(pos, gizmo_center, vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(1.0, 0.0, 0.0));\n"
+        "    if (x_arrow.distance < result.distance) { result = x_arrow; }\n"
+        "    \n"
+        "    // Y Arrow (Green)\n"
+        "    let y_arrow = sdf_gizmo_arrow(pos, gizmo_center, vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(0.0, 1.0, 0.0));\n"
+        "    if (y_arrow.distance < result.distance) { result = y_arrow; }\n"
+        "    \n"
+        "    // Z Arrow (Blue)\n"
+        "    let z_arrow = sdf_gizmo_arrow(pos, gizmo_center, vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(0.0, 0.0, 1.0));\n"
+        "    if (z_arrow.distance < result.distance) { result = z_arrow; }\n"
+        "    \n"
+        "    // XY Plane (Yellow) - offset along Z\n"
+        "    let xy_plane = sdf_gizmo_plane(pos, gizmo_center + vec3<f32>(0.0, 0.0, offset), vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(0.0, 1.0, 0.0));\n"
+        "    if (xy_plane.distance < result.distance) { result = xy_plane; }\n"
+        "    \n"
+        "    // XZ Plane (Magenta) - offset along Y\n"
+        "    let xz_plane = sdf_gizmo_plane(pos, gizmo_center + vec3<f32>(0.0, offset, 0.0), vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(1.0, 0.0, 0.0));\n"
+        "    if (xz_plane.distance < result.distance) { result = xz_plane; }\n"
+        "    \n"
+        "    // YZ Plane (Cyan) - offset along X\n"
+        "    let yz_plane = sdf_gizmo_plane(pos, gizmo_center + vec3<f32>(offset, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(0.0, 0.0, 1.0));\n"
+        "    if (yz_plane.distance < result.distance) { result = yz_plane; }\n"
+        "    \n"
+        "    return result;\n"
+        "}\n";
 }

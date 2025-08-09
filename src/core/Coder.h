@@ -23,6 +23,15 @@ struct Object {
     std::string operation; // "union", "intersection", or "subtract"
 };
 
+struct Gizmo {
+    glm::vec3 position;
+    glm::vec3 xAxis = glm::vec3(1, 0, 0);
+    glm::vec3 yAxis = glm::vec3(0, 1, 0);
+    glm::vec3 zAxis = glm::vec3(0, 0, 1);
+    float scale = 1.0f;
+    bool visible = true;
+};
+
 class Coder {
 
   private:
@@ -83,6 +92,9 @@ class Coder {
         }
     }
 
+    void generateGizmoShader();
+    Gizmo getGizmoForSelectedObject();
+    std::string getGizmoShaderCode();
 };
 
 #endif // CODER_H

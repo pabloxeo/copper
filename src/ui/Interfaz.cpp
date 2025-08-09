@@ -108,6 +108,7 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
         // Add object button
         if (ImGui::Button("Add Object")) {
+
             std::string operation;
             if (operationIndex == 0) {
                 operation = "smoothunion";
@@ -128,7 +129,6 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
                 // Add box
                 coder->addBox(pos[0], pos[1], pos[2], {size[0], size[1], size[2]}, color[0], color[1], color[2], operation);
             }
-
             if (renderer) renderer->pipelineDirty = true;
         }
 
@@ -146,33 +146,17 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
             ImGui::Text("Name: %s", name.c_str());
 
             // Operation selection
-            int currentOperationIndex;
-            if (obj.operation == "smoothunion") {
-                currentOperationIndex = 0;
-            } else if (obj.operation == "intersection") {
-                currentOperationIndex = 1;
-            } else if (obj.operation == "smoothsubtract") {
-                currentOperationIndex = 2;
-            }else if (obj.operation == "union") {
-                currentOperationIndex = 3;
-            } else if (obj.operation == "subtract") {
-                currentOperationIndex = 4;
-            } else {
-                currentOperationIndex = 0; // Default to union
-            }
+            int currentOperationIndex = obj.operation == "smoothunion" ? 0 :
+                                        obj.operation == "intersection" ? 1 :
+                                        obj.operation == "smoothsubtract" ? 2 :
+                                        obj.operation == "union" ? 3 : 4;
 
             if (ImGui::Combo("Operation", &currentOperationIndex, operations, IM_ARRAYSIZE(operations))) {
-                if (currentOperationIndex == 0) {
-                    obj.operation = "smoothunion";
-                } else if (currentOperationIndex == 1) {
-                    obj.operation = "intersection";
-                } else if (currentOperationIndex == 2) {
-                    obj.operation = "smoothsubtract";
-                }else if (currentOperationIndex == 3) {
-                    obj.operation = "union";
-                } else if (currentOperationIndex == 4) {
-                    obj.operation = "subtract";
-                }
+                obj.operation = currentOperationIndex == 0 ? "smoothunion" :
+                                    currentOperationIndex == 1 ? "intersection" :
+                                    currentOperationIndex == 2 ? "smoothsubtract" :
+                                    currentOperationIndex == 3 ? "union" : "subtract";
+                printf("Operation changed to: %s\n", obj.operation.c_str());
                 changed = true;
             }
 
