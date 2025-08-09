@@ -46,7 +46,6 @@ void Renderer::InitGraphics() {
     uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = glm::mat4(1.0f);
     uniformsData.light_position = glm::vec3(0.0f, 5.0f, 0.0f); // Default light position
-    uniformsData.floor = 1;
     BufferDescriptor bufferDesc{};
     bufferDesc.size = sizeof(Uniforms);
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -207,9 +206,6 @@ void Renderer::Render() {
     float normalizedY = static_cast<float>(mouseY) / actualHeight;
     uniformsData.mouse_position = glm::vec2((float)normalizedX, (float)normalizedY);
     uniformsData.picked_id = coder->getSelectedObjectId();
-    uniformsData.floor = this->floor ? 1 : 0;
-    //std::cout << "Floor: " << (uniformsData.floor ? "Enabled" : "Disabled") << std::endl;
-    //std::cout << "Mouse Position: " << uniformsData.mouse_position.x << ", " << uniformsData.mouse_position.y << std::endl;
     
 
     device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));

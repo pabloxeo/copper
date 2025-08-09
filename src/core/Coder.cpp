@@ -7,50 +7,78 @@ void Coder::generateShaderCode() {
         "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n";
 
+    std::string sdfPickingCode =
+        "fn sdf_picking(pos: vec3<f32>) -> DistanceColor {\n"
+        "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n";
+
     for (size_t i = 0; i < objects.size(); ++i) {
         const auto& object = objects[i];
-        if(object.id == selectedObjectId) {
-            if(object.type == "sphere") {
-                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, uniforms.position, uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
-            } else if(object.type == "box") {
-                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, uniforms.position, uniforms.size, uniforms.color, " + std::to_string(object.id) + ");\n";
+        std::string varName = object.type + std::to_string(i);
+        std::string objCode;
+
+        if (object.id == selectedObjectId) {
+            if (object.type == "sphere") {
+                objCode = "    let " + varName + " = sdf_sphere(pos, uniforms.position, uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
+            } else if (object.type == "box") {
+                objCode = "    let " + varName + " = sdf_box(pos, uniforms.position, uniforms.size, uniforms.color, " + std::to_string(object.id) + ");\n";
             }
         } else {
-            if(object.type == "sphere") {
-                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
+            if (object.type == "sphere") {
+                objCode = "    let " + varName + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
                     std::to_string(object.size[0]) + ", vec3<f32>(" + std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
-            } else if(object.type == "box") {
-                shaderCode += "    let " + object.type + std::to_string(i) + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
+            } else if (object.type == "box") {
+                objCode = "    let " + varName + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
                     std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
                     std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
             }
         }
 
+        shaderCode += objCode;
+        sdfPickingCode += objCode;
+
+        // --- Render SDF: apply CSG operations ---
         if (i == 0) {
-            shaderCode += "result = " + object.type + std::to_string(i) + ";\n";
+            shaderCode += "result = " + varName + ";\n";
         } else if (object.operation == "smoothunion") {
-            shaderCode += "result = opSmoothUnion(result, " + object.type + std::to_string(i) + ", 0.6);";
+            shaderCode += "result = opSmoothUnion(result, " + varName + ", 0.6);\n";
         } else if (object.operation == "intersection") {
-            shaderCode += "result = opSmoothIntersect(result, " + object.type + std::to_string(i) + ", 0.6);";
-        } else if (object.operation == "smoothsubtract") {
-            shaderCode += "result = opSmoothSubtract(result, " + object.type + std::to_string(i) + ", 0.6);";
-        }else if (object.operation == "union"){
-            shaderCode += "result = opUnion(result, " + object.type + std::to_string(i) + ");\n";
+            shaderCode += "result = opSmoothIntersect(result, " + varName + ", 0.6);\n";
+        } else if (object.operation == "smoothsubtract" ) {
+            shaderCode += "result = opSmoothSubtract(result, " + varName + ", 0.6);\n";
+        } else if (object.operation == "union") {
+            shaderCode += "result = opUnion(result, " + varName + ");\n";
         } else if (object.operation == "subtract") {
-            shaderCode += "result = opSubtract(result, " + object.type + std::to_string(i) + ");\n";
+            shaderCode += "result = opSubtract(result, " + varName + ");\n";
         }
+
+        // --- Picking SDF: only keep closest object ---
+        sdfPickingCode +=
+            "    if (" + varName + ".distance < result.distance) {\n"
+            "        result = " + varName + ";\n"
+            "    }\n";
+    }
+
+    // Add floor (rendering only)
+    if (renderer->floor) {
+        shaderCode +=
+            "    let floor = sdf_plane(pos);\n"
+            "    if (floor.distance < result.distance) {\n"
+            "        result = floor;\n"
+            "    }\n";
     }
 
     shaderCode +=
-        "    if (uniforms.floor == 1) {\n"
-        "       let floor = sdf_plane(pos);\n"
-        "       if(floor.distance < result.distance) {\n"
-        "           result = floor;\n"
-        "       }\n"
-        "    }\n"
         "    return result;\n"
         "}\n";
+
+    // Finish sdf_picking
+    sdfPickingCode +=
+        "    return result;\n"
+        "}\n";
+
+    shaderCode += sdfPickingCode;  // Append picking version to final shader
 }
+
 
 Coder::Coder(Renderer* renderer){
     this->renderer = renderer;
@@ -64,7 +92,6 @@ Coder::Coder(Renderer* renderer){
         "    position: vec3<f32>,\n"
         "    mouse_position: vec2<f32>,\n"
         "    id: i32,\n"
-        "    floor: i32,\n"
         "};\n"
         "@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n"
         "struct VertexOutput {\n"
@@ -158,20 +185,34 @@ Coder::Coder(Renderer* renderer){
         "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> DistanceColor {\n"
         "   var total_distance: f32 = 0.0;\n"
+        "   var selected_hit: DistanceColor;\n"
+        "   var selected_found: bool = false;\n"
         "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && total_distance < MAX_DISTANCE; i++) {\n"
         "       let pos = ro + rd * total_distance;\n"
         "       let dc = sdf(pos);\n"
         "       if (dc.distance < MIN_DISTANCE){\n"
         "           let normal = calculate_normal(pos);\n"
         "           let view_dir = normalize(ro - pos);\n"
-        "           let lit_color = blinn_phong_lighting(pos, normal, view_dir, dc.color);\n"
-        "           if (dc.id == uniforms.id) {\n"
-        "               let color = mix(lit_color, vec3<f32>(0.0, 1.0, 0.0), 0.1);\n"
-        "               return DistanceColor(dc.distance, color, dc.id);\n"
+        "           var lit_color = blinn_phong_lighting(pos, normal, view_dir, dc.color);\n"
+
+        "           if(!selected_found && dc.id == uniforms.id && uniforms.id != -1){\n"
+        "               selected_hit = DistanceColor(dc.distance, lit_color, dc.id);\n"
+        "               selected_found = true;\n"
+        "           }\n"
+        "           if (selected_found && dc.id == selected_hit.id) {\n"
+        "               total_distance += MIN_DISTANCE * 2.0;\n"
+        "               continue;\n"
+        "           }\n"
+        "           if(selected_found){\n"
+        "               let blended_color = mix(lit_color, selected_hit.color, 0.3);"
+        "               return DistanceColor(dc.distance, blended_color, selected_hit.id);\n"
         "           }\n"
         "           return DistanceColor(dc.distance, lit_color, dc.id);\n"
         "       }\n"
         "       total_distance += dc.distance;\n"
+        "   }\n"
+        "   if (selected_found ){\n"
+        "       return DistanceColor(selected_hit.distance, mix(vec3<f32>(0.0, 0.0, 0.0), selected_hit.color, 0.3), selected_hit.id);\n"
         "   }\n"
         "   return DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n"
         "}\n"
@@ -247,8 +288,20 @@ Coder::Coder(Renderer* renderer){
         "    let mouse_uv = vec2<f32>(m.x, -m.y / uniforms.aspect_ratio);\n"
         "    let rd = normalize(mouse_uv.x * right + mouse_uv.y * up + FOV * forward);\n"
         "    let ro = eye;\n"
-        "    let dc = ray_march(ro, rd);\n"
+        "    let dc = ray_march_picking(ro, rd);\n"
         "    return dc.id;\n"
+        "}\n"
+        "fn ray_march_picking(ro: vec3<f32>, rd: vec3<f32>) -> DistanceColor {\n"
+        "    var total_distance: f32 = 0.0;\n"
+        "    for (var i: i32 = 0; i < MAX_MARCHING_STEPS && total_distance < MAX_DISTANCE; i++) {\n"
+        "        let pos = ro + rd * total_distance;\n"
+        "        let dc = sdf_picking(pos);\n"
+        "        if (dc.distance < MIN_DISTANCE) {\n"
+        "            return dc;\n"
+        "        }\n"
+        "        total_distance += dc.distance;\n"
+        "    }\n"
+        "    return DistanceColor(1e6, vec3<f32>(0.0), -1);\n"
         "}\n"
         ;
 

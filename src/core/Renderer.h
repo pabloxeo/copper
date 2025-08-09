@@ -30,7 +30,7 @@ struct Uniforms {
     float padding3; // Padding to align the struct size to 16 bytes
     glm::vec2 mouse_position; // Position of the mouse in world space
     int picked_id;
-    int floor; // Whether to include the floor in the scene
+    float padd;
 };
 
 

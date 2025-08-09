@@ -64,6 +64,9 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
         ImGui::Begin("Objects");
 
+
+        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
                 // === Light Interfaz ===
         static float lightPos[3] = {0.0f, 5.0f, 0.0f}; // Initial light position
         if (ImGui::SliderFloat3("Light Position", lightPos, -20.0f, 20.0f)) {
