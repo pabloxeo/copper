@@ -11,11 +11,9 @@ public:
 
     GLFWwindow* getWindow() { return window; }
 
-    // Getter functions
     uint32_t getWindowWidth() const { return windowWidth; }
     uint32_t getWindowHeight() const { return windowHeight; }
 
-    // Setter functions
     void setWindowSize(uint32_t width, uint32_t height) {
         windowWidth = width;
         windowHeight = height;

@@ -19,16 +19,16 @@
 using namespace wgpu;
 
 struct Uniforms {
-    glm::mat4 mvp_matrix; // Model-View-Projection matrix
-    glm::vec3 light_position; // Position of the light source
+    glm::mat4 mvp_matrix; 
+    glm::vec3 light_position;
     float aspect_ratio;
-    glm::vec3 size; // Size of the object
-    float padding; // Padding to align the struct size to 16 bytes
-    glm::vec3 color; // Color of the object
-    float padding2; // Padding to align the struct size to 16 bytes
-    glm::vec3 position; // Position of the object in world space
-    float padding3; // Padding to align the struct size to 16 bytes
-    glm::vec2 mouse_position; // Position of the mouse in world space
+    glm::vec3 size;
+    float padding;
+    glm::vec3 color;
+    float padding2;
+    glm::vec3 position;
+    float padding3;
+    glm::vec2 mouse_position;
     int picked_id;
     float padd;
 };

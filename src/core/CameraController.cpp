@@ -7,7 +7,7 @@ std::atomic<int> scroll_direction(0);
 
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     if (ImGui::GetIO().WantCaptureMouse) {
-        return;  // GUI is using the mouse, skip camera interaction
+        return;
     }
     scroll_direction += yoffset > 0 ? 1 : -1;
 }

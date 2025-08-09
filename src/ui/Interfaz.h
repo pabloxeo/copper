@@ -1,7 +1,6 @@
 #ifndef INTERFAZ_H
 #define INTERFAZ_H
 
-// Forward declarations
 class Renderer;
 
 #include <imgui.h>
@@ -11,8 +10,6 @@ class Renderer;
 #include "../core/Coder.h"
 #include "./Window.h"
 
-
-// No need to include window.h or coder.h here
 
 class Interfaz{
 public:

@@ -4,11 +4,9 @@
 
 
 bool Interfaz::initGui(Window window, wgpu::Device device, wgpu::TextureFormat format) {
-    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window.getWindow(), true);
     ImGui_ImplWGPU_InitInfo initInfo = {};
     initInfo.Device = device.Get();
@@ -38,10 +36,8 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
         ImGui::Begin("Selected Object");
         int id = coder->getSelectedObjectId();
         if (id >= 0) {
-            // Get reference instead of copy
             Object& selectedObject = coder->getSelectedObject(id);
 
-            // Modify the object directly
             ImGui::SliderFloat("X", &selectedObject.x, -10.0f, 10.0f);
             ImGui::SliderFloat("Y", &selectedObject.y, -10.0f, 10.0f);
             ImGui::SliderFloat("Z", &selectedObject.z, -10.0f, 10.0f);
@@ -56,6 +52,7 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
             if (ImGui::Button("Delete Object")) {
                 coder->deleteObject(id);
+                coder->setSelectedObjectId(-1);
                 if (renderer) renderer->pipelineDirty = true;
             }
         } else {
@@ -68,13 +65,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
-                // === Light Interfaz ===
         static float lightPos[3] = {0.0f, 5.0f, 0.0f}; // Initial light position
         if (ImGui::SliderFloat3("Light Position", lightPos, -20.0f, 20.0f)) {
             if (renderer) renderer->setLightPosition(lightPos[0], lightPos[1], lightPos[2]);
         }
 
-        ImGui::Separator(); // Visual separation from object Interfaz
+        ImGui::Separator();
 
         if(ImGui::Checkbox("Show Floor", &renderer->floor)) {
             renderer->pipelineDirty = true; // Mark pipeline as dirty to update the floor rendering
@@ -82,17 +78,15 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
         ImGui::Separator();
 
-        // Add new object
         static int objectTypeIndex = 0; // 0 = sphere, 1 = box
         const char* objectTypes[] = {"Sphere", "Box"};
 
         static float pos[3] = {0, 0, 4};
         static float size[3] = {1.0f, 1.0f, 1.0f}; // For spheres, only size[0] is used
         static float color[3] = {1, 0, 0};
-        static int operationIndex = 0; // 0 = union, 1 = intersection, 2 = subtract
+        static int operationIndex = 0;
         const char* operations[] = {"Smooth Union", "Intersection", "Smooth Subtract", "Union", "Subtract"};
 
-        // Select object type
         ImGui::Combo("Object Type", &objectTypeIndex, objectTypes, IM_ARRAYSIZE(objectTypes));
 
         // Common inputs for all objects

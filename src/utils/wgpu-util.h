@@ -1,6 +1,7 @@
 #ifndef WGPU_UTIL_H
 #define WGPU_UTIL_H
-\
+
+
 #include <dawn/webgpu_cpp.h>
 #include <iostream>
 #include <functional>

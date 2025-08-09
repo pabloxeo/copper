@@ -13,15 +13,13 @@ bool Window::Initialize() {
 
     window = glfwCreateWindow(windowWidth, windowHeight, "Copper", nullptr, nullptr);
     glfwSetWindowAspectRatio(window, 16, 9);
-    glfwSetWindowUserPointer(window, this); // Set the user pointer to access the Window instance
+    glfwSetWindowUserPointer(window, this);
     
-    // Set the framebuffer size callback
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
     int tempWidth, tempHeight;
     glfwGetFramebufferSize(window, &tempWidth, &tempHeight);
 
-    // Convert to float and assign
     windowWidth = static_cast<float>(tempWidth);
     windowHeight = static_cast<float>(tempHeight);
 
@@ -36,7 +34,6 @@ void Window::SetWindowUserPointer(void* pointer) {
 }
 
 void Window::FramebufferSizeCallback(GLFWwindow* window,__attribute_maybe_unused__ int width,__attribute_maybe_unused__ int height) {
-    // Get the renderer pointer and call onResize
     auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
     if (renderer != nullptr) {
         renderer->OnResize();
@@ -44,7 +41,6 @@ void Window::FramebufferSizeCallback(GLFWwindow* window,__attribute_maybe_unused
 }
 
 void Window::MouseButtonCallback(GLFWwindow *window, int button, int action,__attribute_maybe_unused__ int mods) {
-    // Get the renderer pointer and call OnMouseButton
     auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
     if (renderer != nullptr && !ImGui::GetIO().WantCaptureMouse && action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT) {
         renderer->OnMouseButton(button, action);

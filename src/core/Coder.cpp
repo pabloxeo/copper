@@ -53,15 +53,11 @@ void Coder::generateShaderCode() {
         } else if (object.operation == "subtract") {
             shaderCode += "    result = opSubtract(result, " + varName + ");\n";
         }
-
-        // --- Picking SDF: only keep closest object ---
         sdfPickingCode +=
             "    if (" + varName + ".distance < result.distance) {\n"
             "        result = " + varName + ";\n"
             "    }\n";
     }
-
-    // Add floor (rendering only)
     if (renderer->floor) {
         shaderCode +=
             "    let floor = sdf_plane(pos);\n"
@@ -70,25 +66,20 @@ void Coder::generateShaderCode() {
             "    }\n";
     }
 
-    // Close main sdf function
     shaderCode +=
         "    return result;\n"
         "}\n";
 
-    // Finish sdf_picking
     sdfPickingCode +=
         "    return result;\n"
         "}\n";
 
-    // Add picking function to shader
     shaderCode += sdfPickingCode;
 
-    // Add gizmo functions if object is selected
     if (selectedObjectId != -1) {
         std::string gizmoCode = getGizmoShaderCode();
         shaderCode += gizmoCode;
         
-        // Modified main SDF that prioritizes gizmos
         shaderCode +=
             "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
             "    let object_result = sdf(pos);\n"
@@ -107,7 +98,6 @@ void Coder::generateShaderCode() {
             "    return object_result;\n"
             "}\n";
     } else {
-        // No gizmos, just alias sdf_combined to sdf
         shaderCode +=
             "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
             "    return sdf(pos);\n"
@@ -364,8 +354,6 @@ void Coder::clearObjects() {
 
 std::string Coder::getGizmoShaderCode() {
     if (selectedObjectId == -1) return "";
-    
-    // Find selected object
     Object* selectedObj = nullptr;
     for (auto& obj : objects) {
         if (obj.id == selectedObjectId) {
@@ -429,7 +417,7 @@ std::string Coder::getGizmoShaderCode() {
         "\n"
         "fn sdf_gizmos(pos: vec3<f32>) -> DistanceColor {\n"
         "    let gizmo_center = vec3<f32>(uniforms.position.x, uniforms.position.y, uniforms.position.z);\n"
-        "    let offset = -0.50;\n"  // Small offset distance
+        "    let offset = -0.50;\n"
         "    \n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0), -1);\n"
         "    \n"
@@ -468,18 +456,15 @@ bool Coder::saveScene(const std::string& filename) {
         return false;
     }
 
-    // Write header
     file << "# Copper Scene File v1.0\n";
     file << "objects " << objects.size() << "\n";
 
-    // Write each object
     for (const auto& obj : objects) {
         file << obj.type << " ";
         file << obj.x << " " << obj.y << " " << obj.z << " ";
         
-        // Handle different size formats
         if (obj.type == "sphere") {
-            file << obj.size[0] << " ";  // Only radius for sphere
+            file << obj.size[0] << " ";
         } else if (obj.type == "box") {
             file << obj.size[0] << " " << obj.size[1] << " " << obj.size[2] << " ";
         }
@@ -504,8 +489,6 @@ bool Coder::loadScene(const std::string& filename) {
 
     std::string line;
     while (std::getline(file, line)) {
-        // Skip comments and empty lines
-        if (line.empty() || line[0] == '#') continue;
 
         std::stringstream ss(line);
         std::string first_word;
@@ -517,7 +500,6 @@ bool Coder::loadScene(const std::string& filename) {
             continue;
         }
 
-        // Parse object line
         std::string type = first_word;
         float x, y, z, r, g, b;
         std::string operation;

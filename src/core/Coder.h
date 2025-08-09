@@ -15,12 +15,12 @@ struct SelectedObjectProperties {
 };
 
 struct Object {
-    int id; // Unique identifier
+    int id;
     float x, y, z;
-    float r, g, b; // Color
-    std::vector<float> size; // For spheres, this is a single float; for boxes, it can be a vector of 3 floats
-    std::string type; // "sphere", "box", etc.
-    std::string operation; // "union", "intersection", or "subtract"
+    float r, g, b;
+    std::vector<float> size;
+    std::string type;
+    std::string operation;
 };
 
 struct Gizmo {
@@ -35,21 +35,27 @@ struct Gizmo {
 class Coder {
 
   private:
+
     std::string base;
     std::string shaderCode;
-    Renderer* renderer; // Pointer to the Renderer instance
-    int objectIdCounter = 1; // Counter for unique object IDs
+    Renderer* renderer;
+    int objectIdCounter = 1;
     Object defaultObject;
-    int selectedObjectId = -1; // ID of the currently selected object
+    int selectedObjectId = -1;
 
   public:
+
     std::vector<Object> objects;
+
     Coder(Renderer* renderer);
-    void generateShaderCode(); // helper to rebuild WGSL
+
+    void generateShaderCode(); 
+    std::string getShaderCode() { return shaderCode+base; }
+
     void addSphere(float x, float y, float z, float size, float r, float g, float b, const std::string& operation);
     void addBox(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation);
     void clearObjects();
-    std::string getShaderCode() { return shaderCode+base; }
+    
 
     int getSelectedObjectId() { return selectedObjectId; }
     void setSelectedObjectId(int id) { selectedObjectId = id; }

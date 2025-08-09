@@ -11,10 +11,8 @@ using namespace wgpu;
 bool Renderer::Init(Window *nwindow) {
     this->window = nwindow;
     
-    // Set window user pointer to this renderer instance
     window->SetWindowUserPointer(this);
     
-    // Set resize callback
     glfwSetFramebufferSizeCallback(window->getWindow(), Window::FramebufferSizeCallback);
 
     glfwSetMouseButtonCallback(window->getWindow(), Window::MouseButtonCallback);
@@ -41,18 +39,21 @@ bool Renderer::Init(Window *nwindow) {
 
 
 void Renderer::InitGraphics() {
+
     ConfigureSurface();
-    // Create aspect ratio buffer
+
+
     uniformsData.aspect_ratio = float(window->getWindowWidth()) / float(window->getWindowHeight());
     uniformsData.mvp_matrix = glm::mat4(1.0f);
     uniformsData.light_position = glm::vec3(0.0f, 5.0f, 0.0f); // Default light position
+
     BufferDescriptor bufferDesc{};
     bufferDesc.size = sizeof(Uniforms);
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
     uniformsBuffer = device.CreateBuffer(&bufferDesc);
     device.GetQueue().WriteBuffer(uniformsBuffer, 0, &uniformsData, sizeof(Uniforms));
 
-    // Create bind group layout and bind group
+    
     BindGroupLayoutEntry entry{};
     entry.binding = 0;
     entry.visibility = ShaderStage::Fragment;
@@ -85,6 +86,7 @@ void Renderer::InitGraphics() {
 } 
 
 void Renderer::ConfigureSurface() {
+
     surface = glfw::CreateSurfaceForWindow(instance, window->getWindow());
     SurfaceCapabilities capabilities;
     surface.GetCapabilities(adapter, &capabilities);
@@ -99,7 +101,9 @@ void Renderer::ConfigureSurface() {
         .width = static_cast<uint32_t>(width),
         .height = static_cast<uint32_t>(height),};
     config.presentMode = PresentMode::Fifo;
+
     surface.Configure(&config);
+
 }
 
 void Renderer::CreateRenderPipeline() {
@@ -127,7 +131,7 @@ void Renderer::CreateRenderPipeline() {
 
     FragmentState fragmentState{};
     fragmentState.module = shaderModule;
-    fragmentState.entryPoint = "fragmentMain";  // Specify the fragment shader entry point
+    fragmentState.entryPoint = "fragmentMain"; 
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTargetState;
 
@@ -183,15 +187,11 @@ void Renderer::Render() {
         //CreatePickingPipeline();
         pipelineDirty = false;
     }
-    // Check if surface is valid before proceeding
     if (!surface) return;
     
     SurfaceTexture surfaceTexture;
-    try {
-        surface.GetCurrentTexture(&surfaceTexture);
-    } catch (...) {
-        return;
-    }
+    surface.GetCurrentTexture(&surfaceTexture);
+
     uint32_t actualWidth = surfaceTexture.texture.GetWidth();
     uint32_t actualHeight = surfaceTexture.texture.GetHeight();
 
@@ -235,16 +235,9 @@ void Renderer::Render() {
 
     RenderPassEncoder pass = encoder.BeginRenderPass(&renderpass);
 
-    // Always use actualWidth/actualHeight from surfaceTexture for viewport/scissor
-    uint32_t scissorWidth = std::min(actualWidth, actualWidth);
-    uint32_t scissorHeight = std::min(actualHeight, actualHeight);
-
-    pass.SetViewport(0, 0, float(scissorWidth), float(scissorHeight), 0.0f, 1.0f);
-    pass.SetScissorRect(0, 0, scissorWidth, scissorHeight);
-
     // Render main content
     pass.SetPipeline(pipeline);
-    pass.SetBindGroup(0, aspectRatioBindGroup); // Add this line
+    pass.SetBindGroup(0, aspectRatioBindGroup);
     pass.Draw(6, 1, 0, 0);
 
 
@@ -266,17 +259,13 @@ void Renderer::Release(){
 }
 
 void Renderer::OnResize() {
-    // Ensure the device is valid before proceeding
     if (!device) return;
     
-    // Ensure all GPU operations are finished
     device.GetQueue().Submit(0, nullptr);
     
-    // Get the new framebuffer size
     int width, height;
     glfwGetFramebufferSize(window->getWindow(), &width, &height);
     
-    // Configure surface with new dimensions
     SurfaceConfiguration config{};
     config.device = device;
     config.format = format;
@@ -285,7 +274,6 @@ void Renderer::OnResize() {
     config.presentMode = PresentMode::Fifo;
     surface.Configure(&config);
     
-    // Recreate depth texture
     TextureDescriptor depthDesc{};
     depthDesc.size.width = static_cast<uint32_t>(width);
     depthDesc.size.height = static_cast<uint32_t>(height);
@@ -296,12 +284,10 @@ void Renderer::OnResize() {
     depthDesc.format = TextureFormat::Depth24Plus;
     depthDesc.usage = TextureUsage::RenderAttachment;
     
-    // First destroy the old texture (explicitly release it)
     depthStencilTexture = {};
     
-    // Then create a new one
     depthStencilTexture = device.CreateTexture(&depthDesc);
-    
+
 }
 
 void Renderer::updateSelectedId(){
@@ -318,19 +304,10 @@ void Renderer::updateSelectedId(){
     };
     CommandEncoder pickingEncoder = device.CreateCommandEncoder();
     RenderPassEncoder pickingPass = pickingEncoder.BeginRenderPass(&pickingRenderpass);
-    
-    uint32_t actualWidth = pickingTexture.GetWidth();
-    uint32_t actualHeight = pickingTexture.GetHeight();
 
-    uint32_t scissorWidth = std::min(actualWidth, actualWidth);
-    uint32_t scissorHeight = std::min(actualHeight, actualHeight);
-
-
-    pickingPass.SetViewport(0, 0, float(scissorWidth), float(scissorHeight), 0.0f, 1.0f);
-    pickingPass.SetScissorRect(0, 0, scissorWidth, scissorHeight);
 
     pickingPass.SetPipeline(pickingPipeline);
-    pickingPass.SetBindGroup(0, aspectRatioBindGroup); // Add this line
+    pickingPass.SetBindGroup(0, aspectRatioBindGroup);
     pickingPass.Draw(6, 1, 0, 0);
     
     BufferDescriptor readbackDesc = {};
@@ -349,7 +326,7 @@ void Renderer::updateSelectedId(){
     TexelCopyBufferInfo destination = {};
     destination.buffer = readbackBuffer;
     destination.layout.offset = 0;
-    destination.layout.bytesPerRow = 256; // 4 bytes for R32Sint format
+    destination.layout.bytesPerRow = 256;
     destination.layout.rowsPerImage = 1;
     
     Extent3D extent = {1, 1, 1};
@@ -368,7 +345,7 @@ void Renderer::updateSelectedId(){
         Renderer *renderer;
     };
 
-    MapUserData* userdata = new MapUserData{readbackBuffer, coder, this}; // manage lifetime properly
+    MapUserData* userdata = new MapUserData{readbackBuffer, coder, this};
 
     WGPUBufferMapCallbackInfo mappedReadyCallback = {
         .nextInChain = nullptr,
@@ -391,7 +368,7 @@ void Renderer::updateSelectedId(){
             } else {
                 std::cerr << "Buffer mapping failed with status: " << status << "\n";
             }
-            delete data; // clean up userdata
+            delete data;
         },
         .userdata1 = userdata,
         .userdata2 = nullptr
@@ -407,7 +384,7 @@ void Renderer::updateSelectedId(){
 void Renderer::CreatePickingPipeline(){
     ShaderModuleWGSLDescriptor wgslDesc{};
     coder->generateShaderCode();
-    std::string shaderSource = coder->getShaderCode(); // or from file
+    std::string shaderSource = coder->getShaderCode();
     wgslDesc.code = shaderSource.c_str();
 
     ShaderModuleDescriptor shaderModuleDescriptor{ .nextInChain = &wgslDesc };
@@ -435,7 +412,7 @@ void Renderer::CreatePickingPipeline(){
 
     FragmentState pickingFragmentState{};
     pickingFragmentState.module = shaderModule;
-    pickingFragmentState.entryPoint = "fragmentPickingMain";  // Specify the picking fragment
+    pickingFragmentState.entryPoint = "fragmentPickingMain";
     pickingFragmentState.targetCount = 1;
     pickingFragmentState.targets = &pickingColorTargetState;
 
