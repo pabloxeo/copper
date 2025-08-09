@@ -95,6 +95,9 @@ class Coder {
     void generateGizmoShader();
     Gizmo getGizmoForSelectedObject();
     std::string getGizmoShaderCode();
+
+    bool saveScene(const std::string& filename);
+    bool loadScene(const std::string& filename);
 };
 
 #endif // CODER_H

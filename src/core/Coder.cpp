@@ -1,6 +1,7 @@
 #include "./Coder.h"
 #include "./Renderer.h"
-
+#include <fstream>
+#include <sstream>
 
 void Coder::generateShaderCode() {
     shaderCode =
@@ -87,14 +88,22 @@ void Coder::generateShaderCode() {
         std::string gizmoCode = getGizmoShaderCode();
         shaderCode += gizmoCode;
         
-        // Modified main SDF that combines objects and gizmos
+        // Modified main SDF that prioritizes gizmos
         shaderCode +=
             "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
-            "    let object_result = sdf(pos);\n"  // Fixed: was calling sdf_combined recursively
+            "    let object_result = sdf(pos);\n"
             "    let gizmo_result = sdf_gizmos(pos);\n"
-            "    if (gizmo_result.distance < object_result.distance) {\n"
+            "    \n"
+            "    // Always show gizmos when they're close enough\n"
+            "    if (gizmo_result.distance < 0.01) {\n"  // Use a small threshold
             "        return gizmo_result;\n"
             "    }\n"
+            "    \n"
+            "    // Use a small offset to ensure gizmos appear in front\n"
+            "    if (gizmo_result.distance < object_result.distance + 0.02) {\n"
+            "        return gizmo_result;\n"
+            "    }\n"
+            "    \n"
             "    return object_result;\n"
             "}\n";
     } else {
@@ -419,10 +428,7 @@ std::string Coder::getGizmoShaderCode() {
         "}\n"
         "\n"
         "fn sdf_gizmos(pos: vec3<f32>) -> DistanceColor {\n"
-        "    let gizmo_center = vec3<f32>(" + 
-            std::to_string(selectedObj->x) + ", " + 
-            std::to_string(selectedObj->y) + ", " + 
-            std::to_string(selectedObj->z) + ");\n"
+        "    let gizmo_center = vec3<f32>(uniforms.position.x, uniforms.position.y, uniforms.position.z);\n"
         "    let offset = -0.50;\n"  // Small offset distance
         "    \n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0), -1);\n"
@@ -453,4 +459,92 @@ std::string Coder::getGizmoShaderCode() {
         "    \n"
         "    return result;\n"
         "}\n";
+}
+
+bool Coder::saveScene(const std::string& filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        printf("Failed to open file for writing: %s\n", filename.c_str());
+        return false;
+    }
+
+    // Write header
+    file << "# Copper Scene File v1.0\n";
+    file << "objects " << objects.size() << "\n";
+
+    // Write each object
+    for (const auto& obj : objects) {
+        file << obj.type << " ";
+        file << obj.x << " " << obj.y << " " << obj.z << " ";
+        
+        // Handle different size formats
+        if (obj.type == "sphere") {
+            file << obj.size[0] << " ";  // Only radius for sphere
+        } else if (obj.type == "box") {
+            file << obj.size[0] << " " << obj.size[1] << " " << obj.size[2] << " ";
+        }
+        
+        file << obj.r << " " << obj.g << " " << obj.b << " ";
+        file << obj.operation << " " << obj.id << "\n";
+    }
+
+    file.close();
+    printf("Scene saved to: %s\n", filename.c_str());
+    return true;
+}
+
+bool Coder::loadScene(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        printf("Failed to open file for reading: %s\n", filename.c_str());
+        return false;
+    }
+
+    clearObjects();
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // Skip comments and empty lines
+        if (line.empty() || line[0] == '#') continue;
+
+        std::stringstream ss(line);
+        std::string first_word;
+        ss >> first_word;
+
+        if (first_word == "objects") {
+            int count;
+            ss >> count;
+            continue;
+        }
+
+        // Parse object line
+        std::string type = first_word;
+        float x, y, z, r, g, b;
+        std::string operation;
+        int id;
+
+        if (type == "sphere") {
+            float radius;
+            if (ss >> x >> y >> z >> radius >> r >> g >> b >> operation >> id) {
+                addSphere(x, y, z, radius, r, g, b, operation);
+                if (!objects.empty()) {
+                    objects.back().id = id;
+                    objectIdCounter = std::max(objectIdCounter, id + 1);
+                }
+            }
+        } else if (type == "box") {
+            float size_x, size_y, size_z;
+            if (ss >> x >> y >> z >> size_x >> size_y >> size_z >> r >> g >> b >> operation >> id) {
+                addBox(x, y, z, {size_x, size_y, size_z}, r, g, b, operation);
+                if (!objects.empty()) {
+                    objects.back().id = id;
+                    objectIdCounter = std::max(objectIdCounter, id + 1);
+                }
+            }
+        }
+    }
+
+    file.close();
+    printf("Scene loaded from: %s\n", filename.c_str());
+    return true;
 }

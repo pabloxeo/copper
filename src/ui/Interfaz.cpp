@@ -1,5 +1,6 @@
 #include "../core/Renderer.h"
 #include "./Interfaz.h"
+#include <ImGuiFileDialog.h>
 
 
 bool Interfaz::initGui(Window window, wgpu::Device device, wgpu::TextureFormat format) {
@@ -180,6 +181,41 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
             coder->clearObjects();
             if (renderer) renderer->pipelineDirty = true;
         }
+
+        ImGui::Separator();
+
+        // === Save/Load Section with File Dialog ===
+        if (ImGui::Button("Save Scene As...")) {
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileSave", "Save Scene", ".copper", ".");
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Load Scene...")) {
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileLoad", "Load Scene", ".copper", ".");
+        }
+
+        // Display the file dialogs
+        if (ImGuiFileDialog::Instance()->Display("ChooseFileSave")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) {
+                std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+                if (coder->saveScene(filePath)) {
+                    printf("Scene saved successfully to: %s\n", filePath.c_str());
+                }
+            }
+            ImGuiFileDialog::Instance()->Close();
+        }
+
+        if (ImGuiFileDialog::Instance()->Display("ChooseFileLoad")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) {
+                std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+                if (coder->loadScene(filePath)) {
+                    if (renderer) renderer->pipelineDirty = true;
+                    printf("Scene loaded successfully from: %s\n", filePath.c_str());
+                }
+            }
+            ImGuiFileDialog::Instance()->Close();
+        }
+
     }
 
     ImGui::End();

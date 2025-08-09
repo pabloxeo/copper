@@ -1,0 +1,4 @@
+# Copper Scene File v1.0
+objects 2
+sphere 0 0 4 1 1 0 0 union 1
+sphere 0 0 2 1 1 0 0 smoothunion 2

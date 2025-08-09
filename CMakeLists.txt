@@ -1,22 +1,56 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.20)
 
-project(Copper VERSION 0.0.2 LANGUAGES CXX C)
-
-set(CMAKE_CXX_STANDARD 20)
-
-# Add package Dawn
-set(DAWN_FETCH_DEPENDENCIES ON)
-add_subdirectory("lib/dawn" EXCLUDE_FROM_ALL)
-
-file(GLOB SRCS
-        ${PROJECT_SOURCE_DIR}/src/**/**.cpp
-        ${PROJECT_SOURCE_DIR}/src/**/**.h
+project(Copper 
+    VERSION 0.0.2 
+    LANGUAGES CXX C
+    DESCRIPTION "3D SDF-based modeling application"
 )
 
-add_executable(copper src/main.cpp ${SRCS})
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add ImGui source files
-target_sources(copper PRIVATE
+# Build type default
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# ===== External Dependencies =====
+
+# Dawn (WebGPU)
+set(DAWN_FETCH_DEPENDENCIES ON)
+add_subdirectory(lib/dawn EXCLUDE_FROM_ALL)
+
+# GLM (Math library)
+add_subdirectory(lib/glm EXCLUDE_FROM_ALL)
+
+# ImGuiFileDialog
+include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
+
+FetchContent_Declare(
+    imguifiledialog
+    GIT_REPOSITORY https://github.com/aiekick/ImGuiFileDialog.git
+    GIT_TAG v0.6.6
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(imguifiledialog)
+
+# ===== Source Files =====
+
+# Collect source files (excluding main.cpp to avoid duplication)
+file(GLOB_RECURSE COPPER_SOURCES
+    src/*.cpp
+    src/*.h
+)
+
+# Remove main.cpp from the list since we add it explicitly
+list(REMOVE_ITEM COPPER_SOURCES ${CMAKE_SOURCE_DIR}/src/main.cpp)
+
+# ImGui source files
+set(IMGUI_SOURCES
     lib/imgui/imgui.cpp
     lib/imgui/imgui_draw.cpp
     lib/imgui/imgui_tables.cpp
@@ -26,26 +60,42 @@ target_sources(copper PRIVATE
     lib/imgui/backends/imgui_impl_wgpu.cpp
 )
 
-# Add ImGui include directories
-target_include_directories(copper PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/src
-    ${PROJECT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib/imgui
-    ${CMAKE_SOURCE_DIR}/lib/imgui/misc/cpp
+# ===== Executable =====
+add_executable(copper 
+    src/main.cpp 
+    ${COPPER_SOURCES}
+    ${IMGUI_SOURCES}
 )
 
-# add_subdirectory(lib/glfw EXCLUDE_FROM_ALL)
-add_subdirectory(lib/glm EXCLUDE_FROM_ALL)
+# ===== Include Directories =====
+target_include_directories(copper PRIVATE
+    src
+    lib/imgui
+    lib/imgui/misc/cpp
+    lib/imgui/backends
+    ${CMAKE_CURRENT_BINARY_DIR}/src
+)
 
-# Declare dependency on the dawn::webgpu_dawn library
-target_link_libraries(copper PRIVATE m dawn::webgpu_dawn glm glfw webgpu_glfw)
+# Tell ImGuiFileDialog where to find ImGui headers
+target_include_directories(ImGuiFileDialog PRIVATE
+    lib/imgui
+    lib/imgui/misc/cpp
+    lib/imgui/backends
+)
 
-target_compile_definitions(copper PRIVATE RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src"
-                                          IMGUI_IMPL_WEBGPU_BACKEND_DAWN
-                                          )
+# ===== Compiler Definitions =====
+target_compile_definitions(copper PRIVATE
+    RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src"
+    IMGUI_IMPL_WEBGPU_BACKEND_DAWN
+)
 
-# Compiler options
-target_compile_options(copper PRIVATE -Wall -Wextra -pedantic)
 
-# Include directories
-target_include_directories(copper PRIVATE ${CMAKE_SOURCE_DIR}/src)
+# ===== Link Libraries =====
+target_link_libraries(copper PRIVATE
+    dawn::webgpu_dawn
+    glm::glm
+    glfw
+    webgpu_glfw
+    ImGuiFileDialog
+)
+
