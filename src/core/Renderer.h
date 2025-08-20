@@ -48,6 +48,9 @@ public:
         uniformsData.light_position = glm::vec3(x, y, z);
     }
 
+    glm::vec2 getMouseUv();
+    float getAspectRatio();
+
     void OnMouseButton(int button, int action);
 
     void updateSelectedId();

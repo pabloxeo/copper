@@ -4,6 +4,7 @@
 
 #include "./Renderer.h"
 #include "../utils/wgpu-util.h"
+#include "GizmoControls.h"
 
 using namespace wgpu;
 
@@ -434,9 +435,39 @@ void Renderer::CreatePickingPipeline(){
 
 }
 
+glm::vec2 Renderer::getMouseUv() {
+    float mouseX, mouseY;
+
+    int width, height;
+    glfwGetFramebufferSize(window->getWindow(), &width, &height);
+    double cursorX, cursorY;
+    glfwGetCursorPos(window->getWindow(), &cursorX, &cursorY);
+    mouseX = static_cast<float>(cursorX) / static_cast<float>(width);
+    mouseY = static_cast<float>(cursorY) / static_cast<float>(height);
+
+    std::cout << "Mouse UV: (" << mouseX << ", " << mouseY << ")" << std::endl;
+
+    return glm::vec2(mouseX, mouseY);
+}
+
+float Renderer::getAspectRatio() {
+    int width, height;
+    glfwGetFramebufferSize(window->getWindow(), &width, &height);
+    return static_cast<float>(width) / static_cast<float>(height);
+}
+
 void Renderer::OnMouseButton(int button, int action) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        CreatePickingPipeline();
-        updateSelectedId();
+        // if an object is selected, check for picking on the axis
+        // if no axis is selected, check for picking on the object
+
+        if (coder->getSelectedObjectId() != -1) {
+            auto mouseUv = getMouseUv();
+            auto aspectRatio = getAspectRatio();
+            check_axis_pick(camera, mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
+        } else {
+            CreatePickingPipeline();
+            updateSelectedId();
+        }
     }
 }
