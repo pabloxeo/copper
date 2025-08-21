@@ -83,17 +83,20 @@ class Coder {
         }
         return props;
     }
-    void deleteObject(int id);
+    void deleteObject(int id) {
+        for (auto it = objects.begin(); it != objects.end(); ++it) {
+            if (it->id == id) {
+                objects.erase(it);
+                break;
+            }
+        }
+    }
 
     void addTest(){
         for(int i = 0; i < 100; ++i) {
             addSphere(i * 2.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, "union");
         }
     }
-
-    void generateGizmoShader();
-    Gizmo getGizmoForSelectedObject();
-    std::string getGizmoShaderCode();
 
     bool saveScene(const std::string& filename);
     bool loadScene(const std::string& filename);
