@@ -30,11 +30,14 @@ class CameraController {
         glm::vec3 total_translation;
         bool upside_down;
         float radius;
+        glm::vec3 center;
 
     public:
         explicit CameraController(Camera *camera, GLFWwindow *window);
         void check_drag(GLFWwindow *window);
         void update_camera(GLFWwindow *window);
+
+        bool active;
         // glm::mat4 getMVP();
 
     private:

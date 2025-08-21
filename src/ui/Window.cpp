@@ -1,7 +1,7 @@
 #include "./Window.h"
 #include "../core/Renderer.h"
 
-bool Window::Initialize() {
+bool Window::Initialize(Renderer *renderer) {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -13,7 +13,7 @@ bool Window::Initialize() {
 
     window = glfwCreateWindow(windowWidth, windowHeight, "Copper", nullptr, nullptr);
     glfwSetWindowAspectRatio(window, 16, 9);
-    glfwSetWindowUserPointer(window, this);
+    glfwSetWindowUserPointer(window, renderer);
     
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
@@ -42,7 +42,8 @@ void Window::FramebufferSizeCallback(GLFWwindow* window,__attribute_maybe_unused
 
 void Window::MouseButtonCallback(GLFWwindow *window, int button, int action,__attribute_maybe_unused__ int mods) {
     auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-    if (renderer != nullptr && !ImGui::GetIO().WantCaptureMouse && action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT) {
+    
+    if (renderer != nullptr && !ImGui::GetIO().WantCaptureMouse) {
         renderer->OnMouseButton(button, action);
     }
 }

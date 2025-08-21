@@ -10,10 +10,18 @@ Camera::Camera():
 
 
 glm::vec3 Camera::get_eye() {
-    // calculate from angles
-    // vert_angle is theta and horiz_angle is phi
-//    return glm::vec3(glm::cos(this->vert_angle)*glm::sin(this->horiz_angle), glm::sin(this->vert_angle), glm::cos(this->vert_angle)*glm::cos(this->horiz_angle)) * this->radius + this->center;
-    return this->eye;
+    auto mvp_matrix = this->get_view_matrix();
+    mvp_matrix = glm::transpose(mvp_matrix);
+
+    auto right = glm::vec3(mvp_matrix[0]);
+    auto up = glm::vec3(mvp_matrix[1]);
+    auto forward = glm::vec3(mvp_matrix[2]);
+
+    auto eye = mvp_matrix[0][3] * right +
+               mvp_matrix[1][3] * up +
+               mvp_matrix[2][3] * forward;
+
+    return eye;
 }
 
 
@@ -22,16 +30,17 @@ glm::vec3 Camera::get_center() {
     return this->center;
 }
 
+glm::vec3 Camera::get_right() {
+    return glm::vec3(glm::transpose(this->view_matrix)[0]);
+}
+
 glm::vec3 Camera::get_up() {
-    return this->up;
+    return glm::vec3(glm::transpose(this->view_matrix)[1]);
 }
 
-glm::vec3 Camera::get_right_vector() {
-    return glm::transpose(this->view_matrix)[0];
-}
 
-glm::vec3 Camera::get_view_dir() {
-    return glm::transpose(this->view_matrix)[2];
+glm::vec3 Camera::get_forward() {
+    return glm::vec3(glm::transpose(this->view_matrix)[2]);
 }
 
 glm::mat4 Camera::get_view_matrix() {
@@ -56,16 +65,4 @@ void Camera::update_view_matrix() {
 
 void Camera::set_view_matrix(glm::mat4 _view_matrix) {
     this->view_matrix = _view_matrix;
-}
-
-void Camera::set_eye(glm::vec3 _eye) {
-    this->eye = glm::vec3(_eye.x, _eye.y, _eye.z);
-}
-
-void Camera::set_center(glm::vec3 _center) {
-    this->center = glm::vec3(_center.x, _center.y, _center.z);
-}
-
-void Camera::set_up(glm::vec3 _up) {
-    this->up = glm::vec3(_up.x, _up.y, _up.z);
 }

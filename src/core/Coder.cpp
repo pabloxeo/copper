@@ -5,7 +5,7 @@
 
 void Coder::generateShaderCode() {
     shaderCode =
-        "fn sdf(pos: vec3<f32>) -> DistanceColor {\n"
+        "fn sdf(pos: vec3<f32>, skip_id: i32) -> DistanceColor {\n"
         "    var result = DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n";
 
     std::string sdfPickingCode =
@@ -19,23 +19,29 @@ void Coder::generateShaderCode() {
 
         if (object.id == selectedObjectId) {
             if (object.type == "sphere") {
-                objCode = "    let " + varName + " = sdf_sphere(pos, uniforms.position, uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
+                objCode = "    var " + varName + ": DistanceColor = sdf_sphere(pos, uniforms.position, uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
             } else if (object.type == "box") {
-                objCode = "    let " + varName + " = sdf_box(pos, uniforms.position, uniforms.size, uniforms.color, " + std::to_string(object.id) + ");\n";
+                objCode = "    var " + varName + ": DistanceColor = sdf_box(pos, uniforms.position, uniforms.size, uniforms.color, " + std::to_string(object.id) + ");\n";
             }
         } else {
             if (object.type == "sphere") {
-                objCode = "    let " + varName + " = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
+                objCode = "    var " + varName + ": DistanceColor = sdf_sphere(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
                     std::to_string(object.size[0]) + ", vec3<f32>(" + std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
             } else if (object.type == "box") {
-                objCode = "    let " + varName + " = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
+                objCode = "    var " + varName + ": DistanceColor = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
                     std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
                     std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
             }
         }
 
+
         shaderCode += objCode;
         sdfPickingCode += objCode;
+
+        shaderCode += 
+            "if (skip_id != -1 && " + std::to_string(object.id) + " == skip_id) {\n"
+            "    " + varName + ".distance = 1e9;\n"
+            "}\n";
         
         if(objects.size() == 1)
             objects[0].operation = "union"; // Default operation for single object
@@ -81,8 +87,8 @@ void Coder::generateShaderCode() {
         shaderCode += gizmoCode;
         
         shaderCode +=
-            "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
-            "    let object_result = sdf(pos);\n"
+            "fn sdf_combined(pos: vec3<f32>, skip_id: i32) -> DistanceColor {\n"
+            "    let object_result = sdf(pos, skip_id);\n"
             "    let gizmo_result = sdf_gizmos(pos);\n"
             "    \n"
             "    // Always show gizmos when they're close enough\n"
@@ -99,8 +105,8 @@ void Coder::generateShaderCode() {
             "}\n";
     } else {
         shaderCode +=
-            "fn sdf_combined(pos: vec3<f32>) -> DistanceColor {\n"
-            "    return sdf(pos);\n"
+            "fn sdf_combined(pos: vec3<f32>, skip_id: i32) -> DistanceColor {\n"
+            "    return sdf(pos, skip_id);\n"
             "}\n";
     }
 }
@@ -175,9 +181,9 @@ Coder::Coder(Renderer* renderer){
         "    let dx = vec3<f32>(eps, 0.0, 0.0);\n"
         "    let dy = vec3<f32>(0.0, eps, 0.0);\n"
         "    let dz = vec3<f32>(0.0, 0.0, eps);\n"
-        "    let nx = sdf_combined(p + dx).distance - sdf_combined(p - dx).distance;\n"
-        "    let ny = sdf_combined(p + dy).distance - sdf_combined(p - dy).distance;\n"
-        "    let nz = sdf_combined(p + dz).distance - sdf_combined(p - dz).distance;\n"
+        "    let nx = sdf_combined(p + dx, -1).distance - sdf_combined(p - dx, -1).distance;\n"
+        "    let ny = sdf_combined(p + dy, -1).distance - sdf_combined(p - dy, -1).distance;\n"
+        "    let nz = sdf_combined(p + dz, -1).distance - sdf_combined(p - dz, -1).distance;\n"
         "    return normalize(vec3<f32>(nx, ny, nz));\n"
         "}\n"
         "fn calculate_shadow(ro: vec3<f32>, rd: vec3<f32>) -> f32 {\n"
@@ -187,7 +193,7 @@ Coder::Coder(Renderer* renderer){
         "   let softness: f32 = 0.2;\n"
         "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && t < max_t; i++) {\n"
         "       let pos = ro + rd * t;\n"
-        "       let h = sdf(pos).distance;\n"
+        "       let h = sdf(pos, -1).distance;\n"
         "       res = min(res, h / (softness * t));\n"
         "       t = t + clamp(h, 0.005, 0.5);\n"
         "       if (res < -1.0 || t > max_t) {\n"
@@ -211,34 +217,33 @@ Coder::Coder(Renderer* renderer){
         "}\n"
         "fn ray_march(ro: vec3<f32>, rd: vec3<f32>) -> DistanceColor {\n"
         "   var total_distance: f32 = 0.0;\n"
-        "   var selected_hit: DistanceColor;\n"
         "   var selected_found: bool = false;\n"
+        "   var skip_id: i32 = -1;\n"
         "   for (var i: i32 = 0; i < MAX_MARCHING_STEPS && total_distance < MAX_DISTANCE; i++) {\n"
         "       let pos = ro + rd * total_distance;\n"
-        "       let dc = sdf_combined(pos);\n"
+        "       let dc = sdf_combined(pos, skip_id);\n"
         "       if (dc.distance < MIN_DISTANCE){\n"
         "           let normal = calculate_normal(pos);\n"
         "           let view_dir = normalize(ro - pos);\n"
         "           var lit_color = blinn_phong_lighting(pos, normal, view_dir, dc.color);\n"
-
         "           if(!selected_found && dc.id == uniforms.id && uniforms.id != -1){\n"
-        "               selected_hit = DistanceColor(dc.distance, lit_color, dc.id);\n"
+        "               skip_id = dc.id;\n"
         "               selected_found = true;\n"
         "           }\n"
-        "           if (selected_found && dc.id == selected_hit.id) {\n"
+        "           if (selected_found && dc.id == uniforms.id) {\n"
         "               total_distance += MIN_DISTANCE * 2.0;\n"
         "               continue;\n"
         "           }\n"
         "           if(selected_found){\n"
-        "               let blended_color = mix(lit_color, selected_hit.color, 0.3);"
-        "               return DistanceColor(dc.distance, blended_color, selected_hit.id);\n"
+        "               let blended_color = mix(lit_color, uniforms.color, 0.3);"
+        "               return DistanceColor(dc.distance, blended_color, uniforms.id);\n"
         "           }\n"
         "           return DistanceColor(dc.distance, lit_color, dc.id);\n"
         "       }\n"
         "       total_distance += dc.distance;\n"
         "   }\n"
         "   if (selected_found){\n"
-        "       return DistanceColor(selected_hit.distance, mix(vec3<f32>(0.0, 0.0, 0.0), selected_hit.color, 0.3), selected_hit.id);\n"
+        "       return DistanceColor(1e6, mix(vec3<f32>(0.0, 0.0, 0.0), uniforms.color, 0.3), uniforms.id);\n"
         "   }\n"
         "   return DistanceColor(1e6, vec3<f32>(0.0, 0.0, 0.0), -1);\n"
         "}\n"
@@ -517,6 +522,15 @@ bool Coder::loadScene(const std::string& filename) {
     printf("Scene loaded from: %s\n", filename.c_str());
     return true;
 }
+
+void Coder::deleteObject(int id) {
+        for (auto it = objects.begin(); it != objects.end(); ++it) {
+            if (it->id == id) {
+                objects.erase(it);
+                break;
+            }
+        }
+    }
 
 // "fn sdf_gizmo_plane(pos: vec3<f32>, center: vec3<f32>, normal1: vec3<f32>, normal2: vec3<f32>, color: vec3<f32>) -> DistanceColor {\n"
 // "    let size = 0.2;\n"

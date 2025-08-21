@@ -25,10 +25,12 @@ CameraController::CameraController(Camera *camera, GLFWwindow *window) :
         upside_down(false),
         radius(10.0f) {
     this->camera = camera;
+    this->active = true;
 
-    this->camera->set_eye(glm::vec3(10.0f, 0.0f, 0.0f));
-    this->camera->set_center(glm::vec3(0.0f, 0.0f, 0.0f));
-    this->camera->set_up(glm::vec3(0.0f, 1.0f, 0.0f));
+    this->center = glm::vec3(0.0f, 0.0f, 0.0f);
+    // this->camera->set_eye(glm::vec3(10.0f, 0.0f, 0.0f));
+    // this->camera->set_center(glm::vec3(0.0f, 0.0f, 0.0f));
+    // this->camera->set_up(glm::vec3(0.0f, 1.0f, 0.0f));
 
     this->update_view_matrix();
     // this->projection_matrix = glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float) window_->width() / (float)window_->height(), 0.1f, 100.0f);
@@ -95,6 +97,11 @@ void CameraController::update_camera(GLFWwindow *window) {
     if (ImGui::GetIO().WantCaptureMouse) {
         return;  // GUI is using the mouse, skip camera interaction
     }
+
+    if (!this->active) {
+        return;
+    }
+
     if (scroll_direction != 0) {
         float speed = this->radius * 0.1f;
         this->radius += speed * (float) (-scroll_direction);
@@ -116,16 +123,17 @@ void CameraController::update_camera(GLFWwindow *window) {
                                                          y_pos - this->mouse_drag_state.right_btn_drag_start_pos.y)
                                                * speed;
 
-            glm::vec3 camera_x = this->camera->get_right_vector();
-            glm::vec3 camera_z = this->camera->get_view_dir();
+            glm::vec3 camera_x = this->camera->get_right();
+            glm::vec3 camera_z = this->camera->get_forward();
             auto norm_v = glm::normalize(translate_screen_space);
             float angle = glm::atan(-norm_v.y, norm_v.x);
 
             glm::vec3 translate_world_space = glm::rotate(glm::mat4(1.0f), -M_PIf + angle, camera_z) *
                                               glm::vec4(camera_x.x, camera_x.y, camera_x.z, 1.0f);
 
-            this->camera->set_center(
-                    this->camera->get_center() + translate_world_space * glm::length(translate_screen_space));
+            // this->camera->set_center(
+            //         this->camera->get_center() + translate_world_space * glm::length(translate_screen_space));
+            this->center += translate_world_space * glm::length(translate_screen_space);
             this->update_view_matrix();
 
             this->mouse_drag_state.right_btn_drag_start_pos.x = x_pos;
@@ -209,7 +217,7 @@ void CameraController::update_view_matrix() {
     auto up = glm::vec3(matrix[1]);
     auto view_dir = glm::vec3(matrix[2]);
 
-    auto camera_center = this->camera->get_center();
+    auto camera_center = this->center;
     auto translation = glm::vec3(
             glm::dot(right, camera_center),
             glm::dot(up, camera_center),

@@ -83,14 +83,7 @@ class Coder {
         }
         return props;
     }
-    void deleteObject(int id) {
-        for (auto it = objects.begin(); it != objects.end(); ++it) {
-            if (it->id == id) {
-                objects.erase(it);
-                break;
-            }
-        }
-    }
+    void deleteObject(int id);
 
     void addTest(){
         for(int i = 0; i < 100; ++i) {

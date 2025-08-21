@@ -20,17 +20,14 @@ public:
 
     glm::vec3 get_eye();
     glm::vec3 get_center();
+    glm::vec3 get_right();
     glm::vec3 get_up();
-    glm::vec3 get_right_vector();
-    glm::vec3 get_view_dir();
+    glm::vec3 get_forward();
     glm::mat4 get_view_matrix();
     glm::mat3 get_view_matrix_3();
 
     void update_view_matrix();
     void set_view_matrix(glm::mat4 view_matrix);
-    void set_eye(glm::vec3 _eye);
-    void set_center(glm::vec3 _center);
-    void set_up(glm::vec3 _up);
 };
 
 #endif //OMP_RM_CAMERA_H

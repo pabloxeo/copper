@@ -13,6 +13,7 @@
 #include "./Camera.h"
 #include "./CameraController.h"
 #include "../ui/Interfaz.h"
+#include "./GizmoControls.h"
 
 
 
@@ -53,6 +54,10 @@ public:
 
     void OnMouseButton(int button, int action);
 
+    // void OnMouseButtonRelease(int button, int action);
+
+    void updateGizmo();
+
     void updateSelectedId();
 
     bool pipelineDirty = false;
@@ -64,6 +69,8 @@ public:
     Camera *camera;
 
     CameraController *cameraController;
+
+    GizmoControls *gizmoControls;
 
 private:
 

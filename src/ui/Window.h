@@ -4,10 +4,12 @@
 #include <webgpu/webgpu_glfw.h>
 #include <GLFW/glfw3.h>
 
+class Renderer;
+
 class Window {
 public:
 
-    bool Initialize();
+    bool Initialize(Renderer *renderer);
 
     GLFWwindow* getWindow() { return window; }
 
@@ -29,6 +31,7 @@ public:
     void SetWindowUserPointer(void* pointer);
     static void FramebufferSizeCallback(GLFWwindow* window, __attribute_maybe_unused__ int width, __attribute_maybe_unused__ int height);
     static void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
+    static void MouseMoveCallback(GLFWwindow *window, double xpos, double ypos);
 
 private:
     GLFWwindow* window = nullptr;

@@ -128,7 +128,7 @@ fn opSmoothSubtraction(d1: DistanceColor, d2: DistanceColor, k: f32) -> Distance
     return DistanceColor(blended_distance, blended_color);
 }
 
-fn sdf(pos: vec3<f32>) -> DistanceColor {
+fn sdf(pos: vec3<f32>, id) -> DistanceColor {
     let d1 = sdf_sphere(pos); // SDF for sphere
     let d2 = sdf_box(pos);    // SDF for box
     let d3 = sdf_sphere2(pos); // SDF for second sphere

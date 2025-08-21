@@ -33,6 +33,7 @@ bool Renderer::Init(Window *nwindow) {
 
     this->camera = new Camera();
     this->cameraController = new CameraController(this->camera, nwindow->getWindow());
+    this->gizmoControls = new GizmoControls(this->camera);
 
 
     return true;
@@ -180,13 +181,14 @@ void Renderer::CreateRenderPipeline() {
 void Renderer::Render() {
 
     this->cameraController->update_camera(this->window->getWindow());
+    this->updateGizmo();
 
     if (pipelineDirty) {
-        printf("Pipeline dirty, recreating...\n");
+        //printf("Pipeline dirty, recreating...\n");
         ConfigureSurface(); 
         CreateRenderPipeline();
-        //CreatePickingPipeline();
         pipelineDirty = false;
+        //CreatePickingPipeline();
     }
     if (!surface) return;
     
@@ -445,7 +447,7 @@ glm::vec2 Renderer::getMouseUv() {
     mouseX = static_cast<float>(cursorX) / static_cast<float>(width);
     mouseY = static_cast<float>(cursorY) / static_cast<float>(height);
 
-    std::cout << "Mouse UV: (" << mouseX << ", " << mouseY << ")" << std::endl;
+    //std::cout << "Mouse UV: (" << mouseX << ", " << mouseY << ")" << std::endl;
 
     return glm::vec2(mouseX, mouseY);
 }
@@ -461,13 +463,43 @@ void Renderer::OnMouseButton(int button, int action) {
         // if an object is selected, check for picking on the axis
         // if no axis is selected, check for picking on the object
 
+
         if (coder->getSelectedObjectId() != -1) {
             auto mouseUv = getMouseUv();
             auto aspectRatio = getAspectRatio();
-            check_axis_pick(camera, mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
-        } else {
+
+            //gizmoControls->checkAxisPick(mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
+            this->gizmoControls->initDrag(mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
+            if (gizmoControls->getIsMoving()) {
+                this->cameraController->active = false;
+            }
+            // std::cout << "Mouse UV: (" << mouseUv.x << ", " << mouseUv.y << ")" << std::endl;
+        } 
+        
+        if (!gizmoControls->getIsMoving()) {
             CreatePickingPipeline();
             updateSelectedId();
         }
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+        gizmoControls->release();
+        this->cameraController->active = true;
+    }
+}
+
+void Renderer::updateGizmo() {
+    auto mouseUv = getMouseUv();
+    auto aspectRatio = getAspectRatio();
+    gizmoControls->update(mouseUv, aspectRatio);
+
+    if (coder->getSelectedObjectId() != -1 && this->gizmoControls->getIsMoving()) {
+        Object &selectedObject = coder->getSelectedObject(coder->getSelectedObjectId());
+        
+        auto newCenter = gizmoControls->getObjectCenter();
+
+        selectedObject.x = newCenter.x;
+        selectedObject.y = newCenter.y;
+        selectedObject.z = newCenter.z;
     }
 }

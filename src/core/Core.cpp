@@ -1,13 +1,11 @@
 //
 // Created by pablo on 20/07/2024.
 //
-
-
 #include "./Core.h"
 
 bool Core::Initialize() {
 
-    if (!window.Initialize()) return false;
+    if (!window.Initialize(&renderer)) return false;
 
     if(!renderer.Init(&window)) return false;
     

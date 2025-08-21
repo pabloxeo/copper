@@ -157,8 +157,9 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
             // Remove object button
             if (ImGui::Button("Remove")) {
-                objects.erase(objects.begin() + i);
+                if (coder->getSelectedObjectId() == obj.id) coder->setSelectedObjectId(-1);
                 if (renderer) renderer->pipelineDirty = true;
+                objects.erase(objects.begin() + i);
                 ImGui::PopID();
                 break;
             }
@@ -172,8 +173,9 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
         }
 
         if (ImGui::Button("Clear All")) {
-            coder->clearObjects();
             if (renderer) renderer->pipelineDirty = true;
+            coder->setSelectedObjectId(-1);
+            coder->clearObjects();
         }
 
         ImGui::Separator();
