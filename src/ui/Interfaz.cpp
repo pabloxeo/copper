@@ -36,7 +36,7 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
         ImGui::Begin("Selected Object");
         int id = coder->getSelectedObjectId();
         if (id >= 0) {
-            Object& selectedObject = coder->getSelectedObject(id);
+            Object& selectedObject = coder->getSelectedObject();
 
             ImGui::SliderFloat("X", &selectedObject.x, -10.0f, 10.0f);
             ImGui::SliderFloat("Y", &selectedObject.y, -10.0f, 10.0f);

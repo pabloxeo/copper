@@ -200,7 +200,7 @@ void Renderer::Render() {
 
     uniformsData.mvp_matrix = this->camera->get_view_matrix();
     uniformsData.aspect_ratio = float(actualWidth) / float(actualHeight);
-    auto selectedObjectProperties = coder->getSelectedObjectProperties(coder->getSelectedObjectId());
+    auto selectedObjectProperties = coder->getSelectedObjectProperties();
     uniformsData.size = selectedObjectProperties.size;
     uniformsData.position = selectedObjectProperties.position;
     uniformsData.color = selectedObjectProperties.color;
@@ -469,7 +469,7 @@ void Renderer::OnMouseButton(int button, int action) {
             auto aspectRatio = getAspectRatio();
 
             //gizmoControls->checkAxisPick(mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
-            this->gizmoControls->initDrag(mouseUv, aspectRatio, coder->getSelectedObjectProperties(coder->getSelectedObjectId()).position);
+            this->gizmoControls->initDrag(mouseUv, aspectRatio, coder->getSelectedObjectProperties().position, coder->getSelectedObjectSize());
             if (gizmoControls->getIsMoving()) {
                 this->cameraController->active = false;
             }
@@ -494,7 +494,7 @@ void Renderer::updateGizmo() {
     gizmoControls->update(mouseUv, aspectRatio);
 
     if (coder->getSelectedObjectId() != -1 && this->gizmoControls->getIsMoving()) {
-        Object &selectedObject = coder->getSelectedObject(coder->getSelectedObjectId());
+        Object &selectedObject = coder->getSelectedObject();
         
         auto newCenter = gizmoControls->getObjectCenter();
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <tuple>
+#include "Coder.h"
 
 GizmoControls::GizmoControls(Camera *camera){
     this->camera = camera;
@@ -20,11 +21,11 @@ glm::vec3 GizmoControls::getObjectCenter() {
     return this->objectCenter;
 }
 
-float GizmoControls::axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color) {
-    float shaft_length = 0.8f;
-    float shaft_radius = 0.02f;
-    float head_length = 0.2f;
-    float head_radius = 0.06f;
+float GizmoControls::axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color, float scale) {
+    float shaft_length = 0.6f * scale;
+    float shaft_radius = 0.02f * scale;
+    float head_length = 0.2f * scale; 
+    float head_radius = 0.06f * scale;
 
     glm::vec3 local_pos = pos - center;
     float axis_dist = glm::dot(local_pos, direction);
@@ -54,9 +55,9 @@ float GizmoControls::sdf_box(glm::vec3 pos, glm::vec3 center, glm::vec3 size) {
 
 }
 
-float GizmoControls::plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2) {
-    float size = 0.2;
-    float thickness = 0.01;
+float GizmoControls::plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2, float scale) {
+    float size = 0.2 * scale;
+    float thickness = 0.01 * scale;
 
     auto normal_sum = normal1 + normal2;
     auto dir_v = glm::vec3(1.0, 1.0, 1.0) - normal_sum;
@@ -65,12 +66,12 @@ float GizmoControls::plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 
     return sdf_box(pos, center, size_v);
 }
 
-void GizmoControls::initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 objectCenter) {
+void GizmoControls::initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 objectCenter, float scale) {
     this->objectCenter = objectCenter;
     this->isMoving = true;
 
     // Initialize the current gizmo based on the mouse position
-    this->checkAxisPick(mouseUv, aspectRatio, objectCenter);
+    this->checkAxisPick(mouseUv, aspectRatio, objectCenter, scale);
 
     if (!this->isMoving) {
         return;
@@ -84,7 +85,7 @@ void GizmoControls::initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 obj
     this->firstIntersectionPoint = intersection;
 }
 
-void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec3 objectCenter) {
+void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec3 objectCenter, float scale) {
     // auto mvp_matrix = camera->get_view_matrix();
     // mvp_matrix = glm::transpose(mvp_matrix);
 
@@ -116,7 +117,7 @@ void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec
     int max_steps = 1000;
     float max_distance = 100.0f;
 
-    auto plane_offset = -0.5f;
+    auto plane_offset = -0.5f * scale;
 
     // std::cout << "Checking axis gizmo pick at mouse UV: " << mouse_uv.x << ", " << mouse_uv.y << std::endl;
     glm::vec3 pos = ro;
@@ -124,13 +125,13 @@ void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec
         
 
         // Check each axis
-        float x_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        float y_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        float z_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        float x_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), scale);
+        float y_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), scale);
+        float z_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f), scale);
 
-        float xy_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, 0.0, plane_offset), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        float xz_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, plane_offset, 0.0), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        float yz_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(plane_offset, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        float xy_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, 0.0, plane_offset), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), scale);
+        float xz_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, plane_offset, 0.0), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), scale);
+        float yz_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(plane_offset, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), scale);
 
         
 
@@ -236,31 +237,57 @@ glm::vec3 gizmoIntersection(std::tuple<glm::vec3, bool> currentGizmo, glm::vec3 
     glm::vec3 normal = glm::vec3(gizmoNormal[0], gizmoNormal[1], gizmoNormal[2]);
 
     if (!isPlane) {
-        // if (gizmoNormal[0] > 0.5f) { // X axis, we take a plane with Z normal
-        //     normal = glm::vec3(0.0f, 0.0f, 1.0f);
-        // }
+        // line two is the gizmo
+        glm::vec3 k2 = objectCenter;
+        glm::vec3 v2 = normal;
 
-        // if (gizmoNormal[1] > 0.5f) { // Y axis, we take a plane with X normal
-        //     normal = glm::vec3(1.0f, 0.0f, 0.0f);
-        // }
+        glm::vec3 k1 = ro;
+        glm::vec3 v1 = rd;
 
-        // if (gizmoNormal[2] > 0.5f) { // Z axis, we take a plane with X normal
-        //     normal = glm::vec3(1.0f, 0.0f, 0.0f);
-        // }
+        float v1_dot_v2 = glm::dot(v1, v2);
+        float v1_dot_v1 = glm::dot(v1, v1);
+        float v2_dot_v2 = glm::dot(v2, v2);
+        float k2_dot_v1 = glm::dot(k2, v1);
+        float k2_dot_v2 = glm::dot(k2, v2);
+        float k1_dot_v1 = glm::dot(k1, v1);
+        float k1_dot_v2 = glm::dot(k1, v2);
 
-        normal = glm::normalize(ro - objectCenter); // Use the ray direction as the normal for axis gizmos
-        // find biggest component of the normal
-        // only use the biggest component of the normal
-        if (std::abs(normal.x) > std::abs(normal.y) && std::abs(normal.x) > std::abs(normal.z)) {
-            normal = glm::vec3(1.0f, 0.0f, 0.0f) * glm::sign(normal.x); // Normalize to positive X direction
-        } else if (std::abs(normal.y) > std::abs(normal.x) && std::abs(normal.y) > std::abs(normal.z)) {
-            normal = glm::vec3(0.0f, 1.0f, 0.0f) * glm::sign(normal.y); // Normalize to positive Y direction
-        } else {
-            normal = glm::vec3(0.0f, 0.0f, 1.0f) * glm::sign(normal.z); // Normalize to positive Z direction
+        if (fabs(v1_dot_v2) < 1e-6) {
+            // check if there is an intersection
+            if (fabs(k2_dot_v1 - k1_dot_v1) > 1e-6) {
+                // Lines are parallel and do not intersect
+                return k1; // Return a point on the gizmo line
+            }
+
+            // Lines are parallel and overlap, return the closest point on the gizmo line to k2
+            float t = glm::dot(k2 - k1, v1) / glm::dot(v1, v1);
+            return k1 + t * v1;
         }
+
+        // auto n = glm::cross(v1, v2);
+        // auto n1 = glm::cross(v1, n);
+
+        // return k2 + glm::dot(k1 - k2, n1) / glm::dot(v2, n1) * v2;
+
+        float num = -(v1_dot_v1) / v1_dot_v2 * (k2_dot_v2 - k1_dot_v2) - k1_dot_v1 + k2_dot_v1;
+        float den = v2_dot_v2 * v1_dot_v1 / v1_dot_v2 - v1_dot_v2;
+
+        float l2 = num / den;
+
+        // auto a = v1_dot_v1;
+        // auto b = v1_dot_v2;
+        // auto c = v2_dot_v2;
+        // auto d = k1_dot_v1 - k2_dot_v1;
+        
+        //std::cout << "l2: " << l2 << std::endl;
+        //std::cout << "num: " << num << ", den: " << den << std::endl;
+        //std::cout << "v1: " << v1.x << ", " << v1.y << ", " << v1.z << std::endl;
+        //std::cout << "v2: " << v2.x << ", " << v2.y << ", " << v2.z << std::endl;
+        //std::cout << "v1_dot_v2: " << v1_dot_v2 << std::endl;
+        //std::cout << "k1: " << k1.x << ", " << k1.y << ", " << k1.z << std::endl;
+
+        return k2 + l2 * v2;
     }
-
-
     auto pointInPlane = isPlane ? objectCenter + glm::vec3(1.0) * -0.5f : objectCenter;
 
     auto p = planeLineIntersection(pointInPlane, normal, ro, rd);

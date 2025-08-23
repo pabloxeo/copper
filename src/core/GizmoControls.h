@@ -13,8 +13,8 @@ class GizmoControls {
 
         GizmoControls(Camera *camera);
 
-        void initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 object_center);
-        void checkAxisPick(glm::vec2 mouseUv, float aspect_ratio, glm::vec3 object_center);
+        void initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 object_center, float scale);
+        void checkAxisPick(glm::vec2 mouseUv, float aspect_ratio, glm::vec3 object_center, float scale);
 
         void setCamera(Camera *camera);
         void release();
@@ -24,9 +24,9 @@ class GizmoControls {
         
     private:
     
-        static float axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color);
+        static float axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color, float scale);
         static float sdf_box(glm::vec3 pos, glm::vec3 center, glm::vec3 size);
-        static float plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2);
+        static float plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2, float scale);
         
         // The center of the object being manipulated.
         glm::vec3 objectCenter;

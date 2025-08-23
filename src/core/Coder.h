@@ -61,19 +61,19 @@ class Coder {
     void setSelectedObjectId(int id) { selectedObjectId = id; }
 
     std::vector<Object>& getObjects() { return objects; }
-    Object& getSelectedObject(int id) {
+    Object& getSelectedObject() {
         for (auto& obj : objects) {
-            if (obj.id == id) {
+            if (obj.id == selectedObjectId) {
                 return obj;
             }
         }
         return defaultObject; // Return the default object if not found
     }
 
-    SelectedObjectProperties getSelectedObjectProperties(int id) {
+    SelectedObjectProperties getSelectedObjectProperties() {
         SelectedObjectProperties props;
         for (const auto& obj : objects) {
-            if (obj.id == id) {
+            if (obj.id == selectedObjectId) {
                 props.size = glm::vec3(obj.size[0], obj.size.size() > 1 ? obj.size[1] : obj.size[0], obj.size.size() > 2 ? obj.size[2] : obj.size[0]);
                 props.position = glm::vec3(obj.x, obj.y, obj.z);
                 props.color = glm::vec3(obj.r, obj.g, obj.b);
@@ -100,6 +100,15 @@ class Coder {
 
     bool saveScene(const std::string& filename);
     bool loadScene(const std::string& filename);
+
+    float getSelectedObjectSize() {
+        for (const auto& obj : objects) {
+            if (obj.id == selectedObjectId) {
+                return obj.size[0];
+            }
+        }
+        return 1.0f; // Default size if no object is selected
+    }
 };
 
 #endif // CODER_H
