@@ -23,8 +23,11 @@ class GizmoControls {
         glm::vec3 getObjectCenter();
         
     private:
-    
-        static float axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color, float scale);
+
+        static glm::vec3 rotate_gizmo_axis(glm::vec3 pos, glm::vec3 axis);
+        static float sdf_cone(glm::vec3 pos, glm::vec2 angle, float height);
+        static float sdf_cylinder(glm::vec3 pos, float radius, float height);
+        static float axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, float scale);
         static float sdf_box(glm::vec3 pos, glm::vec3 center, glm::vec3 size);
         static float plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2, float scale);
         

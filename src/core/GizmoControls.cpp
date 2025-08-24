@@ -21,32 +21,62 @@ glm::vec3 GizmoControls::getObjectCenter() {
     return this->objectCenter;
 }
 
-float GizmoControls::axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, glm::vec3 color, float scale) {
-    float shaft_length = 0.6f * scale;
-    float shaft_radius = 0.02f * scale;
-    float head_length = 0.2f * scale; 
-    float head_radius = 0.06f * scale;
+glm::vec3 GizmoControls::rotate_gizmo_axis(glm::vec3 pos, glm::vec3 axis) {
+    glm::vec3 up = glm::vec3(0.0, 1.0, 0.0);
+    glm::vec3 v = glm::normalize(axis);
+    float c = glm::dot(up, v);
+    if (c > 0.999) { return pos; }
+    if (c < -0.999) { return glm::vec3(pos.x, -pos.y, -pos.z); }
+    glm::vec3 rot_axis = glm::normalize(glm::cross(up, v));
+    float angle = glm::acos(c);
+    float s = glm::sin(angle);
+    float t = 1.0 - glm::cos(angle);
+    float x = rot_axis.x;
+    float y = rot_axis.y;
+    float z = rot_axis.z;
+    glm::mat3 m = glm::mat3(
+        glm::vec3(t*x*x + glm::cos(angle), t*x*y - s*z, t*x*z + s*y),
+        glm::vec3(t*x*y + s*z, t*y*y + glm::cos(angle), t*y*z - s*x),
+        glm::vec3(t*x*z - s*y, t*y*z + s*x, t*z*z + glm::cos(angle))
+    );
+    return m * pos;
+}
 
-    glm::vec3 local_pos = pos - center;
-    float axis_dist = glm::dot(local_pos, direction);
-    glm::vec3 radial_pos = local_pos - axis_dist * direction;
-    float radial_dist = glm::length(radial_pos);
+float GizmoControls::sdf_cone(glm::vec3 pos, glm::vec2 angle, float height) {
+    glm::vec2 q = height * glm::vec2(angle.x / angle.y, -1.0);
+    glm::vec2 w = glm::vec2(glm::length(glm::vec2(pos.x, pos.z)), pos.y);
+    glm::vec2 a = w - q * glm::clamp(glm::dot(w, q) / glm::dot(q, q), 0.0f, 1.0f);
+    glm::vec2 b = w - q * glm::vec2(glm::clamp(w.x / q.x, 0.0f, 1.0f), 1.0f);
+    float k = glm::sign(q.y);
+    float d = glm::min(glm::dot(a, a), glm::dot(b, b));
+    float s = glm::max(k * (w.x * q.y - w.y * q.x), k * (w.y - q.y));
+    return glm::sqrt(d) * glm::sign(s);
+}
 
-    float dist;
-    if (axis_dist < 0.0f) {
-        dist = glm::length(local_pos);
-    } else if (axis_dist < shaft_length) {
-        dist = radial_dist - shaft_radius;
-    } else if (axis_dist < shaft_length + head_length) {
-        float head_progress = (axis_dist - shaft_length) / head_length;
-        float head_r = head_radius * (1.0f - head_progress);
-        dist = radial_dist - head_r;
-    } else {
-        glm::vec3 tip_pos = local_pos - direction * (shaft_length + head_length);
-        dist = glm::length(tip_pos);
-    }
+float GizmoControls::sdf_cylinder(glm::vec3 pos, float radius, float height) {
+    glm::vec2 d = glm::abs(glm::vec2(glm::length(glm::vec2(pos.x, pos.z)), pos.y)) - glm::vec2(radius, height);
+    float dist = glm::min(glm::max(d.x, d.y), 0.0f) + glm::length(glm::max(d, glm::vec2(0.0f)));
+    return dist;
+}
 
-    return dist; // Return the distance value
+float GizmoControls::axis_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 direction, float scale) {
+    float shaft_length = 0.6 * scale;
+        float shaft_radius = 0.02 * scale;
+        float head_length = 0.4 * scale;
+        float head_radius = 0.15 * scale;
+        glm::vec3 local_pos = pos - center;
+        glm::vec3 axis = normalize(direction);
+        glm::vec3 rotated_pos = rotate_gizmo_axis(local_pos, axis);
+        // Cylinder for shaft (Y axis)
+        float shaft = sdf_cylinder(rotated_pos - glm::vec3(0.0, shaft_length / 2.0, 0.0), shaft_radius, shaft_length / 2.0);
+        // Cone for head (Y axis)
+        glm::vec2 cone_angle = glm::vec2(head_radius, head_length);
+        float head = sdf_cone(rotated_pos - glm::vec3(0.0, shaft_length + head_length / 2.0, 0.0), cone_angle, head_length / 2.0);
+        // Combine with union
+        if (head < shaft) {
+            return head;
+        }
+        return shaft;
 }
 float GizmoControls::sdf_box(glm::vec3 pos, glm::vec3 center, glm::vec3 size) {
     glm::vec3 d = abs(pos - center) - size;
@@ -54,7 +84,6 @@ float GizmoControls::sdf_box(glm::vec3 pos, glm::vec3 center, glm::vec3 size) {
     return glm::length(glm::max(d, glm::vec3(0.0f))) + std::min(std::max(d[0], std::max(d[1], d[2])), 0.0f);
 
 }
-
 float GizmoControls::plane_gizmo_sdf(glm::vec3 pos, glm::vec3 center, glm::vec3 normal1, glm::vec3 normal2, float scale) {
     float size = 0.2 * scale;
     float thickness = 0.01 * scale;
@@ -86,28 +115,6 @@ void GizmoControls::initDrag(glm::vec2 mouseUv, float aspectRatio, glm::vec3 obj
 }
 
 void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec3 objectCenter, float scale) {
-    // auto mvp_matrix = camera->get_view_matrix();
-    // mvp_matrix = glm::transpose(mvp_matrix);
-
-    // auto right = glm::vec3(mvp_matrix[0]);
-    // auto up = glm::vec3(mvp_matrix[1]);
-    // auto forward = glm::vec3(mvp_matrix[2]);
-
-    // auto eye = mvp_matrix[0][3] * right +
-    //            mvp_matrix[1][3] * up +
-    //            mvp_matrix[2][3] * forward;
-
-    // auto eye = this->camera->get_eye();
-    // auto right = this->camera->get_right();
-    // auto up = this->camera->get_up();
-    // auto forward = this->camera->get_forward();
-
-
-    // auto uv = mouse_uv * 2.0f - glm::vec2(1.0f, 1.0f);
-    // uv.y = -uv.y / aspect_ratio;
-
-    // auto ro = eye;
-    // auto rd = glm::normalize(uv.x * right + uv.y * up + forward);
     
     auto [ro, rd] = ro_rd_from_uv(this->camera, mouseUv, aspectRatio);
 
@@ -125,9 +132,9 @@ void GizmoControls::checkAxisPick(glm::vec2 mouseUv, float aspectRatio, glm::vec
         
 
         // Check each axis
-        float x_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), scale);
-        float y_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), scale);
-        float z_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f), scale);
+        float x_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(1.0f, 0.0f, 0.0f), scale);
+        float y_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 1.0f, 0.0f), scale);
+        float z_dist = axis_gizmo_sdf(pos, objectCenter, glm::vec3(0.0f, 0.0f, 1.0f), scale);
 
         float xy_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, 0.0, plane_offset), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), scale);
         float xz_dist = plane_gizmo_sdf(pos, objectCenter + glm::vec3(0.0, plane_offset, 0.0), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), scale);

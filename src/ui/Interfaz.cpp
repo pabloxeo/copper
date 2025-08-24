@@ -151,7 +151,7 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
                                     currentOperationIndex == 1 ? "intersection" :
                                     currentOperationIndex == 2 ? "smoothsubtract" :
                                     currentOperationIndex == 3 ? "union" : "subtract";
-                printf("Operation changed to: %s\n", obj.operation.c_str());
+                //printf("Operation changed to: %s\n", obj.operation.c_str());
                 changed = true;
             }
 
