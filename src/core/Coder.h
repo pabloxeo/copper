@@ -54,6 +54,8 @@ class Coder {
 
     void addSphere(float x, float y, float z, float size, float r, float g, float b, const std::string& operation);
     void addBox(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation);
+    void addCone(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation);
+    void addCylinder(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation);
     void clearObjects();
     
 

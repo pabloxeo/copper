@@ -22,6 +22,10 @@ void Coder::generateShaderCode() {
                 objCode = "    var " + varName + ": DistanceColor = sdf_sphere(pos, uniforms.position, uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
             } else if (object.type == "box") {
                 objCode = "    var " + varName + ": DistanceColor = sdf_box(pos, uniforms.position, uniforms.size, uniforms.color, " + std::to_string(object.id) + ");\n";
+            }else if(object.type == "cone") {
+                objCode = "    var " + varName + ": DistanceColor = sdf_cone(pos, uniforms.position, vec2<f32>(uniforms.size[1], uniforms.size[2]), uniforms.size[0], uniforms.color, " + std::to_string(object.id) + ");\n";
+            } else if(object.type == "cylinder") {
+                objCode = "    var " + varName + ": DistanceColor = sdf_cylinder(pos, uniforms.position, uniforms.size[0], uniforms.size[1], uniforms.color, " + std::to_string(object.id) + ");\n";
             }
         } else {
             if (object.type == "sphere") {
@@ -30,6 +34,14 @@ void Coder::generateShaderCode() {
             } else if (object.type == "box") {
                 objCode = "    var " + varName + ": DistanceColor = sdf_box(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec3<f32>(" +
                     std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), vec3<f32>(" +
+                    std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
+            }else if(object.type == "cone") {
+                objCode = "    var " + varName + ": DistanceColor = sdf_cone(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), vec2<f32>(" +
+                    std::to_string(object.size[1]) + ", " + std::to_string(object.size[2]) + "), " + std::to_string(object.size[0]) + ", vec3<f32>(" +
+                    std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
+            } else if(object.type == "cylinder") {
+                objCode = "    var " + varName + ": DistanceColor = sdf_cylinder(pos, vec3<f32>(" + std::to_string(object.x) + ", " + std::to_string(object.y) + ", " + std::to_string(object.z) + "), " +
+                    std::to_string(object.size[0]) + ", " + std::to_string(object.size[1]) + ", vec3<f32>(" +
                     std::to_string(object.r) + ", " + std::to_string(object.g) + ", " + std::to_string(object.b) + "), " + std::to_string(object.id) + ");\n";
             }
         }
@@ -147,7 +159,7 @@ Coder::Coder(Renderer* renderer){
         "    output.clip_pos = vec4<f32>(p, 0.0, 1.0);\n"
         "    return output;\n"
         "}\n"
-        "const MAX_MARCHING_STEPS: i32 = 100;\n"
+        "const MAX_MARCHING_STEPS: i32 = 1000;\n"
         "const MIN_DISTANCE: f32 = 0.001;\n"
         "const MAX_DISTANCE: f32 = 100.0;\n"
         "@fragment\n"
@@ -283,10 +295,10 @@ Coder::Coder(Renderer* renderer){
         "    let axis = normalize(direction);\n"
         "    let rotated_pos = rotate_to_axis(local_pos, axis);\n"
         "    // Cylinder for shaft (Y axis)\n"
-        "    let shaft = sdf_cylinder(rotated_pos - vec3<f32>(0.0, shaft_length / 2.0, 0.0), shaft_radius, shaft_length / 2.0, color, -2);\n"
+        "    let shaft = sdf_cylinder(rotated_pos - vec3<f32>(0.0, shaft_length / 2.0, 0.0), vec3<f32>(0.0), shaft_radius, shaft_length / 2.0, color, -2);\n"
         "    // Cone for head (Y axis)\n"
         "    let cone_angle = vec2<f32>(head_radius, head_length);\n"
-        "    let head = sdf_cone(rotated_pos - vec3<f32>(0.0, shaft_length + head_length / 2.0, 0.0), cone_angle, head_length / 2.0, color, -2);\n"
+        "    let head = sdf_cone(rotated_pos - vec3<f32>(0.0, shaft_length + head_length / 2.0, 0.0), vec3<f32>(0.0), cone_angle, head_length / 2.0, color, -2);\n"
         "    // Combine with union\n"
         "    let arrow = opUnion(shaft, head);\n"
         "    return arrow;\n"
@@ -400,9 +412,10 @@ Coder::Coder(Renderer* renderer){
         "    }\n"
         "    return DistanceColor(distance, color, 0);\n"
         "}\n"
-        "fn sdf_cone(pos: vec3<f32>, angle: vec2<f32>, height: f32, color: vec3<f32>, id: i32) -> DistanceColor {\n"
+        "fn sdf_cone(pos: vec3<f32>, center: vec3<f32>, angle: vec2<f32>, height: f32, color: vec3<f32>, id: i32) -> DistanceColor {\n"
+        "    let local_pos = pos - center;\n"
         "    let q = height * vec2(angle.x / angle.y, -1.0);\n"
-        "    let w = vec2(length(pos.xz), pos.y);\n"
+        "    let w = vec2(length(local_pos.xz), local_pos.y);\n"
         "    let a = w - q*clamp( dot(w,q)/dot(q,q), 0.0, 1.0 );\n"
         "    let b = w - q*vec2(clamp(w.x/q.x, 0.0, 1.0), 1.0);\n"
         "    let k = sign(q.y);\n"
@@ -410,8 +423,9 @@ Coder::Coder(Renderer* renderer){
         "    let s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );\n"
         "    return DistanceColor(sqrt(d)*sign(s), color, id);\n"
         "}\n"
-        "fn sdf_cylinder(pos: vec3<f32>, radius: f32, height: f32, color: vec3<f32>, id: i32) -> DistanceColor {\n"
-        "    let d = abs(vec2(length(pos.xz), pos.y)) - vec2(radius, height);\n"
+        "fn sdf_cylinder(pos: vec3<f32>, center: vec3<f32>, radius: f32, height: f32, color: vec3<f32>, id: i32) -> DistanceColor {\n"
+        "    let local_pos = pos - center;\n"
+        "    let d = abs(vec2(length(local_pos.xz), local_pos.y)) - vec2(radius, height);\n"
         "    let dist = min(max(d.x, d.y), 0.0) + length(max(d, vec2<f32>(0.0)));\n"
         "    return DistanceColor(dist, color, id);\n"
         "}\n"
@@ -453,6 +467,20 @@ void Coder::addSphere(float x, float y, float z, float size, float r, float g, f
 
 void Coder::addBox(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation) {
     std::string type = "box";
+    objects.push_back({objectIdCounter, x, y, z, r, g, b, size, type, operation});
+    objectIdCounter++;
+    renderer->pipelineDirty = true;
+}
+
+void Coder::addCone(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation) {
+    std::string type = "cone";
+    objects.push_back({objectIdCounter, x, y, z, r, g, b, size, type, operation});
+    objectIdCounter++;
+    renderer->pipelineDirty = true;
+}
+
+void Coder::addCylinder(float x, float y, float z, std::vector<float> size, float r, float g, float b, const std::string& operation) {
+    std::string type = "cylinder";
     objects.push_back({objectIdCounter, x, y, z, r, g, b, size, type, operation});
     objectIdCounter++;
     renderer->pipelineDirty = true;

@@ -47,6 +47,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
                 ImGui::SliderFloat("Radius", &selectedObject.size[0], 0.1f, 5.0f);
             } else if (selectedObject.type == "box") {
                 ImGui::DragFloat3("Size (XYZ)", selectedObject.size.data());
+            } else if (selectedObject.type == "cone") {
+                ImGui::DragFloat2("Base Radius, Height", selectedObject.size.data(), 0.1f, 0.1f, 5.0f);
+                ImGui::DragFloat("Top Radius", &selectedObject.size[2], 0.1f, 0.0f, 5.0f);
+            } else if (selectedObject.type == "cylinder") {
+                ImGui::DragFloat("Radius", &selectedObject.size[0], 0.1f, 0.1f, 5.0f);
+                ImGui::DragFloat("Height", &selectedObject.size[1], 0.1f, 0.1f, 10.0f);
             }
 
 
@@ -78,12 +84,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
 
         ImGui::Separator();
 
-        static int objectTypeIndex = 0; // 0 = sphere, 1 = box
-        const char* objectTypes[] = {"Sphere", "Box"};
+        static int objectTypeIndex = 0;
+        const char* objectTypes[] = {"Sphere", "Box", "Cone", "Cylinder"};
 
-        static float pos[3] = {0, 0, 4};
-        static float size[3] = {1.0f, 1.0f, 1.0f}; // For spheres, only size[0] is used
-        static float color[3] = {1, 0, 0};
+        static float pos[3] = {0.0f, 0.0f, 0.0f};
+        static float size[3] = {1.0f, 1.0f, 1.0f};
+        static float color[3] = {0.0f, 0.3f, 1.0f};
         static int operationIndex = 0;
         const char* operations[] = {"Smooth Union", "Intersection", "Smooth Subtract", "Union", "Subtract"};
 
@@ -99,6 +105,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
             ImGui::SliderFloat("Radius", &size[0], 0.1f, 5.0f);
         } else if (objectTypeIndex == 1) { // Box
             ImGui::InputFloat3("Size (XYZ)", size);
+        }else if (objectTypeIndex == 2) { // Cone
+            ImGui::InputFloat2("Base Radius, Top Radius", &size[1]);
+            ImGui::InputFloat("Height", &size[0]);
+        } else if (objectTypeIndex == 3) { // Cylinder
+            ImGui::InputFloat("Radius", &size[0]);
+            ImGui::InputFloat("Height", &size[1]);
         }
 
         // Add object button
@@ -123,6 +135,12 @@ void Interfaz::updateGui(wgpu::RenderPassEncoder renderPass) {
             } else if (objectTypeIndex == 1) {
                 // Add box
                 coder->addBox(pos[0], pos[1], pos[2], {size[0], size[1], size[2]}, color[0], color[1], color[2], operation);
+            }else if (objectTypeIndex == 2) {
+                // Add cone
+                coder->addCone(pos[0], pos[1], pos[2], {size[0], size[1], size[2]}, color[0], color[1], color[2], operation);
+            } else if (objectTypeIndex == 3) {
+                // Add cylinder
+                coder->addCylinder(pos[0], pos[1], pos[2], {size[0], size[1]}, color[0], color[1], color[2], operation);
             }
             if (renderer) renderer->pipelineDirty = true;
         }
