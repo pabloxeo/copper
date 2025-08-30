@@ -73,7 +73,7 @@ Desde la carpeta del proyecto:
 - [x] SDFs primitivas (esfera, caja)
 - [x] Interfaz ImGui básica
 - [x] Sistema de cámara completo
-- [ ] Picking de objetos
+- [x] Picking de objetos
 - [x] Operaciones boolenas
 - [x] Iluminación y sombras
 - [ ] Exportación en malla de triángulos
